@@ -1,4 +1,3 @@
-=======================
 PCP Extension for Scapy
 =======================
 
@@ -9,16 +8,16 @@ http://www.secdev.org/projects/scapy/doc/index.html
 Quick intro
 -----------
 
-~$ sudo ./scapy_pcp.py
+    ~$ sudo ./scapy_pcp.py
 
 This will start interactive mode in which PCP protocol extensions will be
 loaded, and they can be used.
 
 You can take a look at the fields available in PCP layer. Here is the
-list of fields that you can edit in PCP for various opcodes::
+list of fields that you can edit in PCP for various opcodes:
 
->>> PCP(opcode=1).show()
-###[ PCP ]###
+    >>> PCP(opcode=1).show()
+    ###[ PCP ]###
         version   = 2
         opcode    = map
         reserved  = 0
@@ -33,8 +32,9 @@ list of fields that you can edit in PCP for various opcodes::
         int_port  = 0
         ext_port  = 0
         ext_ip    = ::ffff:127.0.0.1
->>> PCP(opcode=2).show()
-###[ PCP ]###
+        
+    >>> PCP(opcode=2).show()    
+    ###[ PCP ]###
         version   = 2
         opcode    = peer
         reserved  = 0
@@ -52,8 +52,9 @@ list of fields that you can edit in PCP for various opcodes::
         peer_port = 0
         reserv3   = 0
         peer_ip   = ::ffff:127.0.0.1
->>> PCP(opcode=3).show()
-###[ PCP ]###
+        
+    >>> PCP(opcode=3).show()
+    ###[ PCP ]###
         version   = 2
         opcode    = sadscp
         reserved  = 0
@@ -66,22 +67,22 @@ list of fields that you can edit in PCP for various opcodes::
 
 Instead of numbers you can also use following syntax::
 
->>> PCP(opcode="map").show()
->>> PCP(opcode="peer").show()
->>> PCP(opcode="sadscp").show()
+    >>> PCP(opcode="map").show()
+    >>> PCP(opcode="peer").show()
+    >>> PCP(opcode="sadscp").show()
 
 To see fields that can be set in PCP options you can use::
 
->>> PCP_OPTION(option_code="third_party").show()
->>> PCP_OPTION(option_code="prefer_failure").show()
->>> PCP_OPTION(option_code="filter").show()
+    >>> PCP_OPTION(option_code="third_party").show()
+    >>> PCP_OPTION(option_code="prefer_failure").show()
+    >>> PCP_OPTION(option_code="filter").show()
 
 You can use similar syntax to check the fields in other layers as well.
 
 For example of IP or UDP layer::
 
->>> ls(IP())
->>> IP().show()
+    >>> ls(IP())
+    >>> IP().show()
 
 Creating and sending PCP message
 --------------------------------
@@ -89,7 +90,7 @@ Creating and sending PCP message
 To create PCP message you need to create IP and UDP layers and then add
 PCP layer, with appropriate fields values set to certain values.
 
->>> packet=  IP(dst="127.0.0.1")/\
+    >>> packet=  IP(dst="127.0.0.1")/\
         UDP(sport=55555, dport=5351)/\
         PCP(    opcode="map",
                 version=1,
@@ -111,7 +112,7 @@ To create packet with PCP option use PCP_OPTION() to append desired option.
 You can add multiple options simply by stacing multiple PCP_OPTION() behind
 each other::
 
->>> packet=  IP(dst="127.0.0.1")/\
+    >>> packet=  IP(dst="127.0.0.1")/\
         UDP(sport=55555, dport=5351)/\
         PCP(    opcode="map",
                 version=1,
@@ -127,8 +128,8 @@ each other::
 
 Sending packet is done using Scapy commands sr() or sr1().
 
->>> resp_pkt=sr1(packet)
->>> resp_pkt.show()
+    >>> resp_pkt=sr1(packet)
+    >>> resp_pkt.show()
 
 You can then use resp_pkt to examine the response packet.
 
@@ -137,9 +138,9 @@ multiple packets. It returns two lists of packets, answered and unanswered.
 To iterate over received pakcets in answered list, one would use something
 similar to following code snippet::
 
-ans,unans = sr(d)
-for snd,rcv in ans:
-      rcv.show()
+    ans,unans = sr(d)
+    for snd,rcv in ans:
+          rcv.show()
 
 
 Sniffing packets with Scapy
@@ -148,11 +149,11 @@ Sniffing packets with Scapy
 You can sniff packets from Scapy session with PCP Addon, by using
 sniff() function::
 
-Welcome to Scapy (2.2.0-dev)
-PCP Addon
->>> packets=sniff(filter="udp port 5351", prn=lambda x: x.summary(), count=2)
-Ether / IP / UDP 127.0.0.1:40167 > 127.0.0.1:5351 / PCP
->>> packets[1].show()
+    Welcome to Scapy (2.2.0-dev)
+    PCP Addon
+    >>> packets=sniff(filter="udp port 5351", prn=lambda x: x.summary(), count=2)
+    Ether / IP / UDP 127.0.0.1:40167 > 127.0.0.1:5351 / PCP
+    >>> packets[1].show()
 
 This will sniff two packets to list packets. You can then access the information
 stored with packets[1] syntax and inspect the information in packets.
