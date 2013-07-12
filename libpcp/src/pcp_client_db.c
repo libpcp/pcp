@@ -38,6 +38,7 @@
 #define FLOW_HASH_BITS 8
 #define FLOW_HASH_SIZE (2<<FLOW_HASH_BITS)
 #define EMPTY 0xFFFFFFFF
+#define PCP_INIT_SERVER_COUNT 5
 
 struct pcp_client_db {
     size_t pcp_servers_length;
@@ -268,10 +269,10 @@ int pcp_new_server(struct in6_addr *ip, uint16_t port)
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     if (pcp_db.pcp_servers == NULL) {
-        pcp_db.pcp_servers = (pcp_server_t *) calloc(5,
+        pcp_db.pcp_servers = (pcp_server_t *) calloc(PCP_INIT_SERVER_COUNT,
                 sizeof(*pcp_db.pcp_servers));
 
-        pcp_db.pcp_servers_length = 5;
+        pcp_db.pcp_servers_length = PCP_INIT_SERVER_COUNT;
     }
 
     for (i = 0; i < pcp_db.pcp_servers_length; ++i) {
@@ -336,7 +337,7 @@ pcp_server_t * get_pcp_server(int pcp_server_index)
     return pcp_db.pcp_servers + pcp_server_index;
 }
 
-pcp_server_t * get_pcp_server_by_fd(int fd)
+pcp_server_t * get_pcp_server_by_fd(PCP_SOCKET fd)
 {
     uint32_t i;
 

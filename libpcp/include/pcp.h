@@ -54,6 +54,12 @@ extern "C" {
 #define PCP_SERVER_DISCOVERY_RETRY_DELAY 3600
 #endif
 
+#ifdef WIN32
+#define PCP_SOCKET SOCKET
+#else
+#define PCP_SOCKET int
+#endif
+
 typedef struct pcp_flow* pcp_flow_t;
 typedef struct pcp_userid_option *pcp_userid_option_p;
 typedef struct pcp_deviceid_option *pcp_deviceid_option_p;
@@ -128,14 +134,14 @@ void pcp_terminate(int close_flows);
 
 /*
  * Creates new PCP message from parameters parsed to this function:
- * @src_addr    source IP/port
- * @dst_addr    destination IP/port - optional
- * @ext_addr    sugg. ext. IP/port  - optional
- * @protocol    protocol associated with flow
- * @lifetime    time in seconds how long should mapping last
+ *  src_addr    source IP/port
+ *  dst_addr    destination IP/port - optional
+ *  ext_addr    sugg. ext. IP/port  - optional
+ *  protocol    protocol associated with flow
+ *  lifetime    time in seconds how long should mapping last
  *
- * @return
- * pcp_flow_t   value used in other functions to reference this flow.
+ *  return
+ *  pcp_flow_t   value used in other functions to reference this flow.
  */
 pcp_flow_t pcp_new_flow(
         struct sockaddr* src_addr,
@@ -151,12 +157,12 @@ void pcp_flow_set_lifetime(pcp_flow_t f, uint32_t lifetime);
 void pcp_set_3rd_party_opt (pcp_flow_t f, struct sockaddr* thirdp_addr);
 
 /*
- * Set flow priority option to the existing flow info
+ * Set flow priority option to the existing flow
  */
 void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down);
 
 /*
- * Append metadata option to the existing flow_info f
+ * Append metadata option to the existing flow f
  * if exists md with given id then replace with new value
  * if value is NULL then remove metadata with this id
  */
@@ -169,10 +175,21 @@ int pcp_flow_set_deviceid(pcp_flow_t f, pcp_deviceid_option_p dev);
 int pcp_flow_set_location(pcp_flow_t f, pcp_location_option_p loc);
 
 
+/*
+ * Append filter option.
+ */
 void pcp_flow_set_filter_opt(pcp_flow_t f, struct sockaddr *filter_ip,
         uint8_t filter_prefix);
 
+/*
+ * Append prefer failure option.
+ */
 void pcp_flow_set_prefer_failure_opt (pcp_flow_t f);
+
+// create new PCP message with SADSCP opcode. It's used to learn
+// correct DSCP values to get desired flow treatment by router.
+pcp_flow_t pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
+uint8_t jitter_tol, char* app_name);
 
 /*
  * Remove flow from PCP server.
@@ -204,34 +221,45 @@ typedef struct pcp_flow_info {
 pcp_flow_info_t *pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf,
         size_t *info_count);
 
+//callback function type - called when flow state has changed
 typedef void (*pcp_flow_change_notify)
         (pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
                 pcp_fstate_e);
 
+//set flow state change notify callback function
 void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun);
 
-pcp_flow_t pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
-uint8_t jitter_tol, char* app_name);
+// evaluate flow state
+// params:
+//   flow (in)    - handle of the flow
+//   fstate (out) - state of the flow
+//   return value - count of interfaces in exit_state (nonzero value means
+//                  there is some result from PCP server)
+
+int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate);
 
 ////////////////////////////////////////////////////////////////////////////////
 //                      Event handling functions
 
-typedef void (*pcp_fd_change_cb_t)
-        (int fd, int added, void *cb_arg, void ** fd_data);
+/*****************************************************************************/
+/* For use in select loop                                                    */
 
-int pcp_set_fd_change_cb(pcp_fd_change_cb_t cb, void* cb_arg);
+// pcp_handle_select - handle socket and timeout events. It's intended to be
+// used in select loop.
+// params:
+//   fd_max (in)       - the biggest FD to check in read_fd_set
+//   read_fd_set (in)  - fd_set with signaled FDs with data available to read.
+//                       mostly to be used with a set filled by select.
+//   select_timeout(in/out) - nearest time-out. if it is filles be nonzero
+//                            value it will return smaller one of provided and
+//                            inner calculated. to be used in select function
 
-int pcp_handle_fd_event(int fd, int timed_out, struct timeval *next_timeout);
-
-// For use in select loop
 void pcp_handle_select(int fd_max, fd_set *read_fd_set,
         struct timeval *select_timeout);
 
+// pcp_set_read_fdset - fills in fd_max and read_fd_set with FDs of internally
+//                      used sockets.
 void pcp_set_read_fdset(int *fd_max, fd_set *read_fd_set);
-
-#define pcp_pulse(next_pulse) pcp_handle_select(0, NULL, next_pulse)
-
-int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate);
 
 // example of use in select loop
 /*
@@ -258,10 +286,73 @@ int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate);
     }
  */
 
-/*
- * Blocking wait for flow reaching one of exit states or time-out(ms) expiration
- */
+/*****************************************************************************/
+/* Blocking wait for flow reaching one of exit states or time-out(ms)
+ * expiration.
+ *   pcp_wait
+ * params:
+ *   flow    (in)             - pcp flow handle
+ *   timeout (in)             - maximal time in ms to wait for result
+ *   exit_on_partial_res (in) - do not wait for result of all interfaces or
+ *                              possible PCP servers. Instead return immediately
+ *                              after first received result.
+                                                                             */
 pcp_fstate_e pcp_wait(pcp_flow_t flow, int timeout, int exit_on_partial_res);
+
+// example of pcp_wait use:
+/*
+    pcp_flow_t f = pcp_new_flow((struct sockaddr*)&src, (struct sockaddr*)&dst,
+                                NULL, IPPROTO_TCP, 60);
+    pcp_flow_set_flowp(f, 12, 16);
+    pcp_wait(f, 500, 0);  // send PCP msg and wait for response for 500 ms
+ */
+
+/*****************************************************************************/
+/* Functions to be used in apps with event handling (e.g. with libevent)     */
+
+// type of callback function. function will be called when new socket is created
+// or the already used one is closed.
+// params:
+//   fd (in)          - fd being added or removed
+//   added (in)       - added / removed
+//   cb_arg (in)      - user defined param - set during cb handler registering
+//   fd_data (in/out) - user data stored to this FD
+
+typedef void (*pcp_fd_change_cb_t)
+        (PCP_SOCKET fd, int added, void *cb_arg, void ** fd_data);
+
+// pcp_set_fd_change_cb - register callback function to be notified about FD
+// creation and deletion.
+
+int pcp_set_fd_change_cb(pcp_fd_change_cb_t cb, void* cb_arg);
+
+// pcp_handle_fd_event - handle event on one FD - data / time-out
+// params:
+//   fd (in)            - FD on which event occurred
+//   timed_out (in)     - 1 timed out, 0 data available to read
+//   mext_timeout (out) - func return next value of time-out on FD
+
+int pcp_handle_fd_event(PCP_SOCKET fd, int timed_out,
+                        struct timeval *next_timeout);
+
+
+/*****************************************************************************/
+/* pcp_pulse - non-blocking function - checks all sockets for any incoming
+ * messages and for time-outs and triggers corresponding action
+ * params:
+ *    struct timeval * next_pulse (out) - value of nearest timeout           */
+
+#define pcp_pulse(next_pulse) pcp_handle_select(0, NULL, next_pulse)
+
+//example of pcp_pulse use:
+/*
+  pcp_flow_t f = pcp_new_flow(...);
+  do {
+      pcp_pulse(NULL);
+      //do something else
+      sleep(1);
+  } while (1);
+*/
 
 #ifdef __cplusplus
 }

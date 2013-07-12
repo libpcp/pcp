@@ -1331,7 +1331,8 @@ void pcp_handle_select(int fd_max, fd_set *read_fd_set,
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
 }
 
-int pcp_handle_fd_event(int fd, int timed_out, struct timeval *next_timeout)
+int
+pcp_handle_fd_event(PCP_SOCKET fd, int timed_out, struct timeval *next_timeout)
 {
     pcp_server_t* s = get_pcp_server_by_fd(fd);
 

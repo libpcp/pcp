@@ -33,7 +33,6 @@ int pcp_win_sock_cleanup();
 
 #define PD_SOCKET_STARTUP pcp_win_sock_startup
 #define PD_SOCKET_CLEANUP pcp_win_sock_cleanup
-#define PCP_SOCKET SOCKET
 #define PCP_SOCKET_ERROR SOCKET_ERROR
 #define PCP_INVALID_SOCKET INVALID_SOCKET
 #define CLOSE(sockfd) closesocket(sockfd)
@@ -42,7 +41,6 @@ int pcp_win_sock_cleanup();
 
 #define PD_SOCKET_STARTUP()
 #define PD_SOCKET_CLEANUP()
-#define PCP_SOCKET int
 #define PCP_SOCKET_ERROR (-1)
 #define PCP_INVALID_SOCKET (-1)
 #define CLOSE(sockfd) close(sockfd)

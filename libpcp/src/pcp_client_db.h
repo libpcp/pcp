@@ -188,7 +188,7 @@ pcp_server_t * get_pcp_server(int pcp_server_index);
 pcp_server_t *
 get_pcp_server_by_ip(struct in6_addr *ip);
 
-pcp_server_t * get_pcp_server_by_fd(int fd);
+pcp_server_t * get_pcp_server_by_fd(PCP_SOCKET fd);
 
 void pcp_db_free_pcp_servers(void);
 
