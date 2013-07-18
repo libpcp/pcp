@@ -48,7 +48,13 @@ EXTRA_DIST = tests/test_flow_notify.sh \
              tests/test_pcp_app.sh \
              tests/test_pcp_server.sh \
              tests/test_flow_md.sh \
-             tests/test_server_reping.sh
+             tests/test_server_reping.sh \
+             INSTALL.md \
+             README.md \
+             pcp_app/README.md \
+             pcp_server/README.md \
+             scapy/README.md \
+             COPYING
 
 TESTS_ENVIRONMENT=PATH=pcp_app/:pcp_server/:libpcp/:tests/:$(PATH)
 
