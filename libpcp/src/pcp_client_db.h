@@ -147,6 +147,7 @@ struct pcp_server {
     char                        pcp_server_paddr[INET6_ADDRSTRLEN];
     PCP_SOCKET                  pcp_server_socket;
     uint8_t                     pcp_version;
+    uint8_t                     next_version;
     pcp_server_state_e          server_state;
     uint32_t                    epoch;
     time_t                      cepoch;
@@ -156,6 +157,7 @@ struct pcp_server {
     pcp_flow_t                  restart_flow_msg;
     uint32_t                    ping_count;
     struct timeval              next_timeout;
+    uint32_t                    natpmp_ext_addr;
     void*                       app_data;
 };
 

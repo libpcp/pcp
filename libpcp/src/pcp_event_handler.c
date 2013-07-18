@@ -708,45 +708,57 @@ end:
 
 static pcp_flow_t server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* msg)
 {
-
-    if (msg->recv_version == 0) {  //LCOV_EXCL_START
-        //TODO: extend version support to NAT-PMP
+    pcp_flow_t f;
+    if (msg->recv_version == 0) {
         if (msg->kd.operation == NATPMP_OPCODE_ANNOUNCE) {
+            s->natpmp_ext_addr = S6_ADDR32(&msg->assigned_ext_ip)[3];
+            if ((s->pcp_version == 0) && (s->ping_flow_msg) &&
+                (s->ping_flow_msg->kd.operation==PCP_OPCODE_ANNOUNCE)) {
+                f = s->ping_flow_msg;
+            } else {
+                f = NULL;
+            }
+        } else {
+            S6_ADDR32(&msg->assigned_ext_ip)[3] = s->natpmp_ext_addr;
+            S6_ADDR32(&msg->assigned_ext_ip)[2] = htonl(0xFFFF);
+            S6_ADDR32(&msg->assigned_ext_ip)[1] = 0;
+            S6_ADDR32(&msg->assigned_ext_ip)[0] = 0;
 
+            f = pcp_get_flow(&msg->kd, s->index);
+        }
+    } else {
+        f = pcp_get_flow(&msg->kd, s->index);
+    }
+
+    if (!f) {
+        char in6[INET6_ADDRSTRLEN];
+        PCP_LOGGER(PCP_DEBUG_INFO,"%s",
+                "Couldn't find matching flow to received PCP message.");
+        PCP_LOGGER(PCP_DEBUG_PERR, "  Operation   : %u", msg->kd.operation);
+        if ((msg->kd.operation == PCP_OPCODE_MAP) ||
+            (msg->kd.operation == PCP_OPCODE_PEER)) {
+            PCP_LOGGER(PCP_DEBUG_PERR, "  Protocol    : %u",
+                    msg->kd.map_peer.protocol);
+            PCP_LOGGER(PCP_DEBUG_PERR, "  Source      : %s:%hu",
+                    inet_ntop(s->af, &msg->kd.src_ip, in6,
+                        sizeof(in6)),
+                    ntohs(msg->kd.map_peer.src_port));
+            PCP_LOGGER(PCP_DEBUG_PERR, "  Destination : %s:%hu",
+                    inet_ntop(s->af, &msg->kd.map_peer.dst_ip, in6,
+                        sizeof(in6)),
+                    ntohs(msg->kd.map_peer.dst_port));
+        } else {
+            //TODO: add print of SADSCP params
         }
         return NULL;
-    } else { //LCOV_EXCL_STOP
-        pcp_flow_t f = pcp_get_flow(&msg->kd, s->index);
-        if (!f) {
-            char in6[INET6_ADDRSTRLEN];
-            PCP_LOGGER(PCP_DEBUG_INFO,"%s",
-                    "Couldn't find matching flow to received PCP message.");
-            PCP_LOGGER(PCP_DEBUG_PERR, "  Operation   : %u", msg->kd.operation);
-            if ((msg->kd.operation == PCP_OPCODE_MAP) ||
-                (msg->kd.operation == PCP_OPCODE_PEER)) {
-                PCP_LOGGER(PCP_DEBUG_PERR, "  Protocol    : %u",
-                        msg->kd.map_peer.protocol);
-                PCP_LOGGER(PCP_DEBUG_PERR, "  Source      : %s:%hu",
-                        inet_ntop(s->af, &msg->kd.src_ip, in6,
-                            sizeof(in6)),
-                        ntohs(msg->kd.map_peer.src_port));
-                PCP_LOGGER(PCP_DEBUG_PERR, "  Destination : %s:%hu",
-                        inet_ntop(s->af, &msg->kd.map_peer.dst_ip, in6,
-                            sizeof(in6)),
-                        ntohs(msg->kd.map_peer.dst_port));
-            } else {
-                //TODO: add print of SADSCP params
-            }
-            return NULL;
-        }
-
-        PCP_LOGGER(PCP_DEBUG_INFO,
-                "Found matching flow %d to received PCP message.",
-                f->key_bucket);
-
-        handle_flow_event(f, FEV_RES_BEGIN + msg->recv_result, msg);
-        return f;
     }
+
+    PCP_LOGGER(PCP_DEBUG_INFO,
+            "Found matching flow %d to received PCP message.",
+            f->key_bucket);
+
+    handle_flow_event(f, FEV_RES_BEGIN + msg->recv_result, msg);
+    return f;
 }
 
 static int check_flow_timeout(pcp_flow_t f, void * timeout)
@@ -801,6 +813,21 @@ static int get_first_flow_iter(pcp_flow_t f, void* data)
     } else {
         return 0;
     }
+}
+
+static inline pcp_flow_t create_natpmp_ann_msg(pcp_server_t *s)
+{
+    struct flow_key_data    kd;
+
+    memset(&kd, 0, sizeof(kd));
+    memcpy(&kd.src_ip, s->src_ip, sizeof(kd.src_ip));
+    memcpy(&kd.pcp_server_ip, s->pcp_ip, sizeof(kd.pcp_server_ip));
+    memcpy(&kd.nonce, &s->nonce, sizeof(kd.nonce));
+    kd.operation = NATPMP_OPCODE_ANNOUNCE;
+    s->ping_flow_msg = pcp_create_flow(s, &kd);
+    pcp_db_add_flow(s->ping_flow_msg);
+
+    return s->ping_flow_msg;
 }
 
 static inline pcp_flow_t get_ping_msg(pcp_server_t *s)
@@ -927,13 +954,24 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
         return pss_set_not_working;
     }
 
-    s->pcp_version--;
+    if (s->next_version == s->pcp_version)  {
+        s->next_version--;
+    }
+
     PCP_LOGGER(PCP_DEBUG_INFO,
             "Version %d not supported by server %s. Trying version %d.",
-            s->pcp_version + 1, s->pcp_server_paddr, s->pcp_version);
+            s->pcp_version, s->pcp_server_paddr, s->next_version);
+    s->pcp_version = s->next_version;
 
     ping_msg = s->ping_flow_msg;
-    if (!ping_msg) {
+    if (s->pcp_version == 0) {
+        if (ping_msg) {
+            ping_msg->state = pfs_wait_for_server_init;
+            ping_msg->timeout.tv_sec = 0;
+            ping_msg->timeout.tv_usec = 0;
+        }
+        ping_msg = create_natpmp_ann_msg(s);
+    } else if (!ping_msg) {
         ping_msg = get_ping_msg(s);
         if (!ping_msg) {
             s->next_timeout.tv_sec = 0;
@@ -1014,6 +1052,7 @@ static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s)
         PCP_LOGGER(PCP_DEBUG_DEBUG, "PCP server %s returned "
                 "result_code=Unsupported version", s->pcp_server_paddr);
         gettimeofday(&s->next_timeout, NULL);
+        s->next_version = msg.recv_version;
         return pss_version_negotiation;
     case PCP_RES_ADDRESS_MISMATCH:
         PCP_LOGGER(PCP_DEBUG_WARN, "There is PCP-unaware NAT present "

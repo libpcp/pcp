@@ -37,8 +37,8 @@
 #define PCP_OPCODE_PEER 		2
 #define PCP_OPCODE_SADSCP       3
 #define NATPMP_OPCODE_ANNOUNCE  0
-#define NATPMP_OPCODE_MAP_TCP   1
-#define NATPMP_OPCODE_MAP_UDP   2
+#define NATPMP_OPCODE_MAP_UDP   1
+#define NATPMP_OPCODE_MAP_TCP   2
 
 /* Possible response codes sent by server, as a result of client request*/
 #define PCP_RES_SUCCESS				    0
@@ -111,6 +111,11 @@ typedef struct pcp_options_hdr {
     uint8_t next_data[0]; /* */
 } pcp_options_hdr_t;
 
+typedef struct nat_pmp_announce_req {
+    uint8_t ver;
+    uint8_t opcode;
+} nat_pmp_announce_req_t;
+
 typedef struct nat_pmp_announce_resp {
     uint8_t ver;
     uint8_t opcode;
@@ -118,6 +123,15 @@ typedef struct nat_pmp_announce_resp {
     uint32_t epoch;
     uint32_t ext_ip;
 } nat_pmp_announce_resp_t;
+
+typedef struct nat_pmp_map_req {
+    uint8_t ver;
+    uint8_t opcode;
+    uint16_t reserved;
+    uint16_t int_port;
+    uint16_t ext_port;
+    uint32_t lifetime;
+} nat_pmp_map_req_t;
 
 typedef struct nat_pmp_map_resp {
     uint8_t ver;
@@ -128,6 +142,13 @@ typedef struct nat_pmp_map_resp {
     uint16_t ext_port;
     uint32_t lifetime;
 } nat_pmp_map_resp_t;
+
+typedef struct nat_pmp_inv_version_resp {
+    uint8_t ver;
+    uint8_t opcode;
+    uint16_t result;
+    uint32_t epoch;
+} nat_pmp_inv_version_resp_t;
 
 struct pcp_nonce {
     uint32_t n[3];

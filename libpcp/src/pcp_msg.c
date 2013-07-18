@@ -297,6 +297,40 @@ static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
     return build_pcp_options(flow, next);
 }
 
+static pcp_errno build_natpmp_msg(pcp_server_t * server, pcp_flow_t flow)
+{
+    if (flow->kd.operation == PCP_OPCODE_ANNOUNCE) {
+        nat_pmp_announce_req_t *ann_msg =
+                (nat_pmp_announce_req_t *) flow->pcp_msg_buffer;
+        ann_msg->ver = 0;
+        ann_msg->opcode = NATPMP_OPCODE_ANNOUNCE;
+        flow->pcp_msg_len = sizeof(*ann_msg);
+
+        return PCP_RES_SUCCESS;
+    } else if (flow->kd.operation == PCP_OPCODE_MAP) {
+        nat_pmp_map_req_t * map_info = (nat_pmp_map_req_t *) flow->pcp_msg_buffer;
+        switch  (flow->kd.map_peer.protocol) {
+        case IPPROTO_TCP:
+            map_info->opcode = NATPMP_OPCODE_MAP_TCP;
+            break;
+        case IPPROTO_UDP:
+            map_info->opcode = NATPMP_OPCODE_MAP_UDP;
+            break;
+        default:
+            return PCP_RES_UNSUPP_PROTOCOL;
+        }
+        map_info->ver = 0;
+        map_info->lifetime = htonl(flow->lifetime);
+        map_info->int_port = flow->kd.map_peer.src_port;
+        map_info->ext_port = flow->map_peer.ext_port;
+        flow->pcp_msg_len = sizeof(*map_info);
+
+        return PCP_RES_SUCCESS;
+    } else {
+        return PCP_RES_UNSUPP_OPCODE;
+    }
+}
+
 void* build_pcp_msg(pcp_flow_t flow)
 {
     ssize_t ret=-1;
@@ -329,29 +363,35 @@ void* build_pcp_msg(pcp_flow_t flow)
 
     req = (pcp_request_t *) flow->pcp_msg_buffer;
 
-    req->ver = pcp_server->pcp_version;
+    if (pcp_server->pcp_version == 0) {
+        // NATPMP
+        ret = build_natpmp_msg(pcp_server, flow);
+    } else {
 
-    req->r_opcode |= (uint8_t) (flow->kd.operation & 0x7f); //set  opcode
-    req->req_lifetime = htonl((uint32_t) flow->lifetime );
+        req->ver = pcp_server->pcp_version;
 
-    memcpy(&req->ip, &flow->kd.src_ip, 16);
-    // next data in the packet
-    next_data = req->next_data;
-    flow->pcp_msg_len = (uint8_t*) next_data - (uint8_t*) req;
+        req->r_opcode |= (uint8_t) (flow->kd.operation & 0x7f); //set  opcode
+        req->req_lifetime = htonl((uint32_t) flow->lifetime );
 
-    switch (flow->kd.operation) {
-    case PCP_OPCODE_PEER:
-        ret=build_pcp_peer(pcp_server, flow, next_data);
-        break;
-    case PCP_OPCODE_MAP:
-        ret=build_pcp_map(pcp_server, flow, next_data);
-        break;
-    case PCP_OPCODE_SADSCP:
-        ret=build_pcp_sadscp(pcp_server, flow, next_data);
-        break;
-    case PCP_OPCODE_ANNOUNCE:
-        ret=0;
-        break;
+        memcpy(&req->ip, &flow->kd.src_ip, 16);
+        // next data in the packet
+        next_data = req->next_data;
+        flow->pcp_msg_len = (uint8_t*) next_data - (uint8_t*) req;
+
+        switch (flow->kd.operation) {
+        case PCP_OPCODE_PEER:
+            ret=build_pcp_peer(pcp_server, flow, next_data);
+            break;
+        case PCP_OPCODE_MAP:
+            ret=build_pcp_map(pcp_server, flow, next_data);
+            break;
+        case PCP_OPCODE_SADSCP:
+            ret=build_pcp_sadscp(pcp_server, flow, next_data);
+            break;
+        case PCP_OPCODE_ANNOUNCE:
+            ret=0;
+            break;
+        }
     }
 
     if (ret<0) {
@@ -512,9 +552,6 @@ static pcp_errno parse_v0_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
             S6_ADDR32(&f->assigned_ext_ip)[3] = r->ext_ip;
 
             return PCP_ERR_SUCCESS;
-        } else {
-
-            return PCP_ERR_RECV_FAILED;
         }
     } else if ((f->kd.operation == NATPMP_OPCODE_MAP_TCP)
             || (f->kd.operation == NATPMP_OPCODE_MAP_UDP)) {
@@ -524,19 +561,23 @@ static pcp_errno parse_v0_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
             f->kd.map_peer.src_port = r->int_port;
             f->recv_epoch = ntohl(r->epoch);
             f->recv_lifetime = ntohl(r->lifetime);
+            f->recv_result = ntohs(r->result);
             f->kd.map_peer.protocol =
                     f->kd.operation == NATPMP_OPCODE_MAP_TCP ?
                             IPPROTO_TCP : IPPROTO_UDP;
-
+            f->kd.operation = PCP_OPCODE_MAP;
             return PCP_ERR_SUCCESS;
-        } else {
-
-            return PCP_ERR_RECV_FAILED;
         }
-    } else {
-
-        return PCP_ERR_RECV_FAILED;
     }
+
+    if (f->pcp_msg_len == sizeof(nat_pmp_inv_version_resp_t)) {
+        nat_pmp_inv_version_resp_t *r = (nat_pmp_inv_version_resp_t*) resp;
+        f->recv_result = ntohs(r->result);
+        f->recv_epoch = ntohl(r->epoch);
+        return PCP_ERR_SUCCESS;
+    }
+
+    return PCP_ERR_RECV_FAILED;
 }
 
 static pcp_errno parse_v1_resp(pcp_recv_msg_t* f, pcp_response_t * resp)

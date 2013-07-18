@@ -548,8 +548,7 @@ void static inline parse_opt_version(struct pcp_params *p)
 {
     p->pcp_version = (uint8_t)atoi(optarg);
     //check if the version entered is supported or not
-    if ((p->pcp_version < 1) ||
-            (p->pcp_version > PCP_MAX_SUPPORTED_VERSION)) {
+    if (p->pcp_version > PCP_MAX_SUPPORTED_VERSION) {
         fprintf(stderr, "Unsupported version %d \n", p->pcp_version);
         exit(1);
     }
