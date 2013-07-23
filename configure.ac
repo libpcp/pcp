@@ -6,7 +6,6 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign color-tests])
 AM_PROG_AR
 LT_INIT
 AC_PROG_CC
-AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
  Makefile
  libpcp/Makefile
@@ -124,6 +123,15 @@ AC_ARG_ENABLE([server],
               [build_server=${enableval}],
               [build_server="yes"])
 AM_CONDITIONAL([BUILD_SERVER],[test "x$build_server" = "xyes"])
+
+AC_ARG_ENABLE([natpmp],
+              [AS_HELP_STRING([--disable-natpmp],[disable NATPMP support])],
+              [enable_natpmp=${enableval}],
+              [enable_natpmp="yes"])
+
+if test "x$enable_natpmp" != "xyes" ; then
+AC_DEFINE([PCP_DISABLE_NATPMP_SUPPORT],1,[disable NATPMP support])
+fi
 
 AC_PROG_LIBTOOL
 
