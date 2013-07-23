@@ -709,6 +709,7 @@ end:
 static pcp_flow_t server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* msg)
 {
     pcp_flow_t f;
+#ifndef PCP_DISABLE_NATPMP
     if (msg->recv_version == 0) {
         if (msg->kd.operation == NATPMP_OPCODE_ANNOUNCE) {
             s->natpmp_ext_addr = S6_ADDR32(&msg->assigned_ext_ip)[3];
@@ -729,6 +730,9 @@ static pcp_flow_t server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* m
     } else {
         f = pcp_get_flow(&msg->kd, s->index);
     }
+#else
+    f = pcp_get_flow(&msg->kd, s->index);
+#endif
 
     if (!f) {
         char in6[INET6_ADDRSTRLEN];
@@ -815,6 +819,7 @@ static int get_first_flow_iter(pcp_flow_t f, void* data)
     }
 }
 
+#ifndef PCP_DISABLE_NATPMP
 static inline pcp_flow_t create_natpmp_ann_msg(pcp_server_t *s)
 {
     struct flow_key_data    kd;
@@ -829,6 +834,7 @@ static inline pcp_flow_t create_natpmp_ann_msg(pcp_server_t *s)
 
     return s->ping_flow_msg;
 }
+#endif
 
 static inline pcp_flow_t get_ping_msg(pcp_server_t *s)
 {
@@ -945,7 +951,17 @@ static pcp_server_state_e handle_wait_ping_resp_recv(pcp_server_t* s)
 static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
 {
     pcp_flow_t ping_msg;
-    if (s->pcp_version == 0) {
+
+    if (s->next_version == s->pcp_version)  {
+        s->next_version--;
+    }
+
+    if (
+        (s->pcp_version==0)
+#if PCP_MIN_SUPPORTED_VERSION>0
+        || (s->next_version < PCP_MIN_SUPPORTED_VERSION)
+#endif
+       ) {
         PCP_LOGGER(PCP_DEBUG_WARN,
                 "Version negotiation failed for PCP server %s. "
                         "Disabling sending PCP messages to this server.",
@@ -954,16 +970,13 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
         return pss_set_not_working;
     }
 
-    if (s->next_version == s->pcp_version)  {
-        s->next_version--;
-    }
-
     PCP_LOGGER(PCP_DEBUG_INFO,
             "Version %d not supported by server %s. Trying version %d.",
             s->pcp_version, s->pcp_server_paddr, s->next_version);
     s->pcp_version = s->next_version;
 
     ping_msg = s->ping_flow_msg;
+#ifndef PCP_DISABLE_NATPMP
     if (s->pcp_version == 0) {
         if (ping_msg) {
             ping_msg->state = pfs_wait_for_server_init;
@@ -971,14 +984,16 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
             ping_msg->timeout.tv_usec = 0;
         }
         ping_msg = create_natpmp_ann_msg(s);
-    } else if (!ping_msg) {
+    } else
+#endif
+      if (!ping_msg) {
         ping_msg = get_ping_msg(s);
         if (!ping_msg) {
             s->next_timeout.tv_sec = 0;
             s->next_timeout.tv_usec = 0;
             return pss_ping;
         }
-    }
+      }
 
     ping_msg->retry_count = 0;
     ping_msg->resend_timeout = 0;
@@ -1011,8 +1026,6 @@ static pcp_server_state_e handle_server_restart(pcp_server_t* s)
     gettimeofday(&s->next_timeout, NULL);
     return pss_wait_io_calc_nearest_timeout;
 }
-
-
 
 static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s)
 {

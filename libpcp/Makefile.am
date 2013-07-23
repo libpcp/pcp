@@ -29,7 +29,7 @@ noinst_HEADERS =    src/net/pcp_socket.h\
                     src/net/findsaddr.h \
                     src/net/unp.h
 
-libpcp_la_LDFLAGS = -version-info 0:0:0 -release 2
+libpcp_la_LDFLAGS = -version-info 0:0:0 -release 2 ${PCP_LDFLAGS}
 
 libpcp_la_LIBADD = $(GCOVLIB)
 

@@ -297,7 +297,8 @@ static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
     return build_pcp_options(flow, next);
 }
 
-static pcp_errno build_natpmp_msg(pcp_server_t * server, pcp_flow_t flow)
+#ifndef PCP_DISABLE_NATPMP
+static pcp_errno build_natpmp_msg(pcp_flow_t flow)
 {
     if (flow->kd.operation == PCP_OPCODE_ANNOUNCE) {
         nat_pmp_announce_req_t *ann_msg =
@@ -330,6 +331,7 @@ static pcp_errno build_natpmp_msg(pcp_server_t * server, pcp_flow_t flow)
         return PCP_RES_UNSUPP_OPCODE;
     }
 }
+#endif
 
 void* build_pcp_msg(pcp_flow_t flow)
 {
@@ -365,7 +367,9 @@ void* build_pcp_msg(pcp_flow_t flow)
 
     if (pcp_server->pcp_version == 0) {
         // NATPMP
-        ret = build_natpmp_msg(pcp_server, flow);
+#ifndef PCP_DISABLE_NATPMP
+        ret = build_natpmp_msg(flow);
+#endif
     } else {
 
         req->ver = pcp_server->pcp_version;
@@ -540,6 +544,7 @@ static pcp_errno parse_sadscp(pcp_recv_msg_t* f, void * r)
     return PCP_ERR_SUCCESS;
 }
 
+#ifndef PCP_DISABLE_NATPMP
 static pcp_errno parse_v0_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
 {
     if (f->kd.operation == PCP_OPCODE_ANNOUNCE) {
@@ -579,6 +584,7 @@ static pcp_errno parse_v0_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
 
     return PCP_ERR_RECV_FAILED;
 }
+#endif
 
 static pcp_errno parse_v1_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
 {
@@ -634,9 +640,11 @@ pcp_errno parse_response(pcp_recv_msg_t* f)
     f->kd.operation = resp->r_opcode & 0x7f;
 
     switch (f->recv_version) {
+#ifndef PCP_DISABLE_NATPMP
     case 0:
         return parse_v0_resp(f, resp);
         break;
+#endif
     case 1:
         return parse_v1_resp(f, resp);
         break;
