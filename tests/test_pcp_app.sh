@@ -41,13 +41,9 @@ pcp --pcp-version 1 --jitter-tolerance 3 --delay-tolerance 3 --loss-tolerance 3 
 
 pcp -v 3 --internal :1234 &>/dev/null && echo_exit "Failed in bad pcp-version test #1"
 
-pcp -v 0 --internal :1234 &>/dev/null && echo_exit "Failed in bad pcp-version test #2"
-
 pcp -d &> /dev/null  && echo_exit "Failed in not enough params test"
 
-pcp --pcp-version 3 --internal :1234 &>/dev/null && echo_exit "Failed in bad version test #3"
-
-pcp --pcp-version 0 --internal :1234 &>/dev/null && echo_exit "Failed in bad version test #4"
+pcp --pcp-version 3 --internal :1234 &>/dev/null && echo_exit "Failed in bad version test #2"
 
 pcp -v 1 -q &>/dev/null && echo_exit "Failed in bad arg test #1"
 pcp - &>/dev/null && echo_exit "Failed in bad argument test #2"

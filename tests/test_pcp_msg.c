@@ -22,37 +22,36 @@
 int main(void)
 {
     pcp_log_level = PCP_DEBUG_NONE;
-    {   // TEST NATPMP - parsing
-    nat_pmp_announce_resp_t natpmp_a;
-    nat_pmp_map_resp_t natpmp_mt;
-    nat_pmp_map_resp_t natpmp_mu;
-    pcp_recv_msg_t msg;
-
     PD_SOCKET_STARTUP();
-
-    natpmp_a.ver = 0;
-    natpmp_a.opcode = 0;
-    natpmp_a.result =  htons(11);
-    natpmp_a.epoch = htonl(1234);
-    natpmp_a.ext_ip = 0x01020304;
-
-    natpmp_mt.ver = 0;
-    natpmp_mt.opcode = NATPMP_OPCODE_MAP_TCP;
-    natpmp_mt.result = htons(11);
-    natpmp_mt.epoch = htonl(1234);
-    natpmp_mt.ext_port = htons(1234);
-    natpmp_mt.int_port = htons(3456);
-    natpmp_mt.lifetime = htonl(2233);
-
-    natpmp_mu.ver = 0;
-    natpmp_mu.opcode = NATPMP_OPCODE_MAP_UDP;
-    natpmp_mu.result = htons(11);
-    natpmp_mu.epoch = htonl(1234);
-    natpmp_mu.ext_port = htons(1234);
-    natpmp_mu.int_port = htons(3456);
-    natpmp_mu.lifetime = htonl(2233);
+#ifndef PCP_DISABLE_NATPMP
+    {   // TEST NATPMP - parsing
+        nat_pmp_announce_resp_t natpmp_a;
+        nat_pmp_map_resp_t natpmp_mt;
+        nat_pmp_map_resp_t natpmp_mu;
+        pcp_recv_msg_t msg;
 
 
+        natpmp_a.ver = 0;
+        natpmp_a.opcode = 0;
+        natpmp_a.result =  htons(11);
+        natpmp_a.epoch = htonl(1234);
+        natpmp_a.ext_ip = 0x01020304;
+
+        natpmp_mt.ver = 0;
+        natpmp_mt.opcode = NATPMP_OPCODE_MAP_TCP;
+        natpmp_mt.result = htons(11);
+        natpmp_mt.epoch = htonl(1234);
+        natpmp_mt.ext_port = htons(1234);
+        natpmp_mt.int_port = htons(3456);
+        natpmp_mt.lifetime = htonl(2233);
+
+        natpmp_mu.ver = 0;
+        natpmp_mu.opcode = NATPMP_OPCODE_MAP_UDP;
+        natpmp_mu.result = htons(11);
+        natpmp_mu.epoch = htonl(1234);
+        natpmp_mu.ext_port = htons(1234);
+        natpmp_mu.int_port = htons(3456);
+        natpmp_mu.lifetime = htonl(2233);
 
         memset(&msg,0,sizeof(msg));
         memcpy(&msg.pcp_msg_buffer, &natpmp_a, sizeof(natpmp_a));
@@ -120,6 +119,7 @@ int main(void)
         msg.pcp_msg_len = sizeof(natpmp_mu);
         TEST(parse_response(&msg)!=PCP_ERR_SUCCESS);
     }
+#endif
     {   // TEST validate MSG
         pcp_recv_msg_t msg;
         pcp_response_t* resp = (pcp_response_t*)msg.pcp_msg_buffer;
