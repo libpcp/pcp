@@ -645,6 +645,7 @@ static int delete_flow_iter(pcp_flow_t f, void * data)
 {
     if (*(int*)data) {
         pcp_close_flow_intern(f);
+        pcp_pulse(NULL);
     }
     pcp_delete_flow_intern(f);
 
