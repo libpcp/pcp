@@ -1431,10 +1431,12 @@ void pcp_flow_updated(pcp_flow_t f)
 }
 
 pcp_flow_change_notify pcp_flow_change_cb_fun=NULL;
+void* pcp_flow_change_cb_arg = NULL;
 
-void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun)
+void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun, void* cb_arg)
 {
     pcp_flow_change_cb_fun = cb_fun;
+    pcp_flow_change_cb_arg = cb_arg;
 }
 
 static void
@@ -1473,7 +1475,7 @@ static void flow_change_notify(pcp_flow_t flow, pcp_fstate_e state)
             ext_addr.ss_family = s?s->af:AF_INET;
         }
         pcp_flow_change_cb_fun(flow, (struct sockaddr*)&src_addr,
-                (struct sockaddr*)&ext_addr, state);
+                (struct sockaddr*)&ext_addr, state, pcp_flow_change_cb_arg);
     }
 }
 

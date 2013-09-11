@@ -31,7 +31,7 @@ pcp_flow_t flow_to_wait=NULL;
 uint32_t notified = 0;
 
 void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-        pcp_fstate_e s)
+        pcp_fstate_e s, void* cb_arg)
 {
     if ((f==flow_to_wait)&&(s==pcp_state_succeeded)) {
         notified = 1;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
         flow1=flow2; flow2=tmp;
     }  //LCOV_EXCL_STOP
 
-    pcp_set_flow_change_cb(notify_cb_1);
+    pcp_set_flow_change_cb(notify_cb_1, NULL);
     flow_to_wait = flow2;
 
     TEST(pcp_wait(flow1, 2000, 0) == pcp_state_succeeded);

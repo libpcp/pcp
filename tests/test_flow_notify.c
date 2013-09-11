@@ -39,7 +39,7 @@ uint8_t status;
 pcp_flow_t flow = NULL;
 
 void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-        pcp_fstate_e s)
+        pcp_fstate_e s, void* cb_arg)
 {
     TEST(1==(status = ((f==flow) && (src_addr->sa_family == AF_INET))));
 
@@ -52,10 +52,12 @@ void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_a
     TEST(1==(status = status && ext_addr->sa_family == AF_INET));
 
     TEST((status = status && ((struct sockaddr_in*)ext_addr)->sin_addr.s_addr == 0x281e140a)==1);
+
+    TEST(cb_arg==NULL);
 }
 
 void notify_cb_2(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-        pcp_fstate_e s)
+        pcp_fstate_e s, void* cb_arg)
 {
     status = 0;
     TEST((f==flow) && (src_addr->sa_family == AF_INET6));
@@ -67,6 +69,8 @@ void notify_cb_2(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_a
     TEST(s == pcp_state_failed);
 
     TEST(ext_addr->sa_family == AF_INET6);
+
+    TEST(cb_arg==(void*)1);
 
     status =1;
 }
@@ -130,7 +134,7 @@ int main(int argc, char *argv[]) {
     printf("####  ***********************     ####\n");
     printf("######################################\n");
 
-    pcp_set_flow_change_cb(notify_cb_1);
+    pcp_set_flow_change_cb(notify_cb_1, NULL);
 
     flow = NULL;
 
@@ -146,7 +150,7 @@ int main(int argc, char *argv[]) {
 
     pcp_add_server(Sock_pton("[::1]:5351"), 2);
 
-    pcp_set_flow_change_cb(notify_cb_2);
+    pcp_set_flow_change_cb(notify_cb_2, (void*)1);
 
     flow = NULL;
 

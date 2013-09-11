@@ -237,10 +237,10 @@ pcp_flow_info_t *pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf,
 //callback function type - called when flow state has changed
 typedef void (*pcp_flow_change_notify)
         (pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-                pcp_fstate_e);
+                pcp_fstate_e, void* cb_arg);
 
 //set flow state change notify callback function
-void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun);
+void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun, void* cb_arg);
 
 // evaluate flow state
 // params:
