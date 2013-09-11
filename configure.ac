@@ -133,6 +133,35 @@ if test "x$enable_natpmp" != "xyes" ; then
 AC_DEFINE([PCP_DISABLE_NATPMP_SUPPORT],1,[disable NATPMP support])
 fi
 
+AC_ARG_ENABLE([flow-priority],
+              [AS_HELP_STRING([--enable-flow-priority],[enable flow priority option support])],
+              [enable_flowp=${enableval}],
+              [enable_flowp="no"])
+
+if test "x$enable_flowp" = "xyes" ; then
+AC_DEFINE([PCP_FLOW_PRIORITY],1,[enable FLOW-PRIORITY option support])
+fi
+
+AC_ARG_ENABLE([learn-dscp],
+              [AS_HELP_STRING([--enable-learn-dscp],[enable SADSCP operation support])],
+              [enable_sadscp=${enableval}],
+              [enable_sadscp="no"])
+
+if test "x$enable_sadscp" = "xyes" ; then
+AC_DEFINE([PCP_SADSCP],1,[enable SADSCP option support])
+fi
+AM_CONDITIONAL([PCP_SADSCP],[test "x$enable_sadscp" = "xyes"])
+
+AC_ARG_ENABLE([experimental],
+              [AS_HELP_STRING([--enable-experimental],[enable experimental PCP options support])],
+              [enable_experimental=${enableval}],
+              [enable_experimental="no"])
+
+if test "x$enable_experimental" = "xyes" ; then
+AC_DEFINE([PCP_EXPERIMENTAL],1,[enable experimental PCP options support])
+fi
+AM_CONDITIONAL([PCP_EXPERIMENTAL],[test "x$enable_experimental" = "xyes"])
+
 AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE([silent-rules],

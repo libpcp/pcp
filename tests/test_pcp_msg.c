@@ -191,7 +191,6 @@ int main(void)
     {  //TEST build msg
         struct pcp_flow fs;
         pcp_server_t *s;
-        uint16_t i;
 
         memset(&fs, 0, sizeof(fs));
         TEST(build_pcp_msg(&fs)==NULL);
@@ -210,14 +209,19 @@ int main(void)
         fs.kd.operation = PCP_OPCODE_PEER;
         TEST(build_pcp_msg(&fs)==NULL);
         s->pcp_version = 2;
-        pcp_db_add_md(&fs, 0, NULL,sizeof("string"));
-        pcp_db_add_md(&fs, 1, "string", 0);
-        for (i=2; i<256; ++i) {
-            pcp_db_add_md(&fs, i, "string",sizeof("string"));
-        }
-        TEST(build_pcp_msg(&fs)!=NULL);
-        TEST(fs.pcp_msg_len<=PCP_MAX_LEN);
+#ifdef PCP_EXPERIMENTAL
+        {
+            uint16_t i;
 
+            pcp_db_add_md(&fs, 0, NULL,sizeof("string"));
+            pcp_db_add_md(&fs, 1, "string", 0);
+            for (i=2; i<256; ++i) {
+                pcp_db_add_md(&fs, i, "string",sizeof("string"));
+            }
+            TEST(build_pcp_msg(&fs)!=NULL);
+            TEST(fs.pcp_msg_len<=PCP_MAX_LEN);
+        }
+#endif
         TEST(build_pcp_msg(NULL)==NULL);
     }
 

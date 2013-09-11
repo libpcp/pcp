@@ -550,8 +550,10 @@ fhndl_received_success(pcp_flow_t f, pcp_recv_msg_t* msg)
             (f->kd.operation == PCP_OPCODE_PEER)) {
         f->map_peer.ext_ip = msg->assigned_ext_ip;
         f->map_peer.ext_port = msg->assigned_ext_port;
+#ifdef PCP_SADSCP
     } else if (f->kd.operation == PCP_OPCODE_SADSCP) {
         f->sadscp.learned_dscp = msg->recv_dscp;
+#endif
     }
     f->recv_result = msg->recv_result;
 

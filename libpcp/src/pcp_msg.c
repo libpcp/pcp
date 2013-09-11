@@ -77,6 +77,7 @@ static void * add_prefer_failure_option(void* cur)
     return cur;
 }
 
+#ifdef PCP_EXPERIMENTAL
 static void * add_userid_option(pcp_flow_t f, void* cur)
 {
     pcp_userid_option_t *userid_op = (pcp_userid_option_t *) cur;
@@ -114,8 +115,9 @@ static void * add_deviceid_option(pcp_flow_t f, void* cur)
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return cur;
 }
+#endif
 
-
+#ifdef PCP_FLOW_PRIORITY
 static void * add_flowp_option(pcp_flow_t f, void* cur)
 {
     pcp_flow_priority_option_t* flowp_op = (pcp_flow_priority_option_t*)cur;
@@ -128,7 +130,9 @@ static void * add_flowp_option(pcp_flow_t f, void* cur)
 
     return cur;
 }
+#endif
 
+#ifdef PCP_EXPERIMENTAL
 static inline pcp_metadata_option_t *
 add_md_option(pcp_flow_t f, pcp_metadata_option_t *md_opt, md_val_t* md)
 {
@@ -163,13 +167,15 @@ static void * add_md_options(pcp_flow_t f, void* cur)
     }
     return md_opt;
 }
+#endif
 
 static pcp_errno build_pcp_options(pcp_flow_t flow, void* cur)
 {
+#ifdef PCP_FLOW_PRIORITY
     if (flow->flowp_option_present) {
         cur = add_flowp_option(flow, cur);
     }
-
+#endif
     if (flow->filter_option_present) {
         cur = add_filter_option(flow, cur);
     }
@@ -177,7 +183,7 @@ static pcp_errno build_pcp_options(pcp_flow_t flow, void* cur)
     if (flow->pfailure_option_present) {
         cur = add_prefer_failure_option(cur);
     }
-
+#ifdef PCP_EXPERIMENTAL
     if (flow->f_deviceid.deviceid[0] != '\0') {
         cur = add_deviceid_option(flow, cur);
     }
@@ -193,6 +199,7 @@ static pcp_errno build_pcp_options(pcp_flow_t flow, void* cur)
     if (flow->md_val_count>0) {
         cur = add_md_options(flow, cur);
     }
+#endif
 
     flow->pcp_msg_len = ((char*)cur) - flow->pcp_msg_buffer;
 
@@ -263,6 +270,7 @@ static pcp_errno build_pcp_map(pcp_server_t * server, pcp_flow_t flow,
     return build_pcp_options(flow, next);
 }
 
+#ifdef PCP_SADSCP
 static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
         void* sadscp_loc)
 {
@@ -296,6 +304,7 @@ static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
 
     return build_pcp_options(flow, next);
 }
+#endif
 
 #ifndef PCP_DISABLE_NATPMP
 static pcp_errno build_natpmp_msg(pcp_flow_t flow)
@@ -389,9 +398,11 @@ void* build_pcp_msg(pcp_flow_t flow)
         case PCP_OPCODE_MAP:
             ret=build_pcp_map(pcp_server, flow, next_data);
             break;
-        case PCP_OPCODE_SADSCP:
+#ifdef PCP_SADSCP
+            case PCP_OPCODE_SADSCP:
             ret=build_pcp_sadscp(pcp_server, flow, next_data);
             break;
+#endif
         case PCP_OPCODE_ANNOUNCE:
             ret=0;
             break;
@@ -530,6 +541,7 @@ static pcp_errno parse_v2_peer(pcp_recv_msg_t* f, void * r)
     return PCP_ERR_SUCCESS;
 }
 
+#ifdef PCP_SADSCP
 static pcp_errno parse_sadscp(pcp_recv_msg_t* f, void * r)
 {
     pcp_sadscp_resp_t * d;
@@ -543,6 +555,7 @@ static pcp_errno parse_sadscp(pcp_recv_msg_t* f, void * r)
 
     return PCP_ERR_SUCCESS;
 }
+#endif
 
 #ifndef PCP_DISABLE_NATPMP
 static pcp_errno parse_v0_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
@@ -623,8 +636,10 @@ static pcp_errno parse_v2_resp(pcp_recv_msg_t* f, pcp_response_t * resp)
         return parse_v2_map(f, resp->next_data);
     case PCP_OPCODE_PEER:
         return parse_v2_peer(f, resp->next_data);
+#ifdef PCP_SADSCP
     case PCP_OPCODE_SADSCP:
         return parse_sadscp(f, resp->next_data);
+#endif
     default:
         return PCP_ERR_RECV_FAILED;
     }

@@ -51,11 +51,13 @@ typedef enum {
 
 #define PCP_INV_SERVER (~0u)
 
+#ifdef PCP_EXPERIMENTAL
 typedef struct {
     uint16_t md_id;
     uint16_t val_len;
     uint8_t  val_buf[MD_VAL_MAX_LEN];
 } md_val_t;
+#endif
 
 struct pcp_flow {
     // flow's data
@@ -82,14 +84,17 @@ struct pcp_flow {
             struct in6_addr     ext_ip;
             in_port_t           ext_port;
         } map_peer;
+#ifdef PCP_SADSCP
         struct {
             uint8_t toler_fields;
             uint8_t app_name_length;
             uint8_t learned_dscp;
         } sadscp;
+#endif
     };
+#ifdef PCP_SADSCP
     char*   sadscp_app_name;
-
+#endif
     //response data
     time_t              recv_lifetime;
     uint32_t            recv_result;
@@ -104,6 +109,7 @@ struct pcp_flow {
     uint32_t            to_send_count;
     struct timeval      timeout;
 
+#ifdef PCP_EXPERIMENTAL
     //Userid
     pcp_userid_option_t f_userid;
 
@@ -112,12 +118,14 @@ struct pcp_flow {
 
     //DeviceID
     pcp_deviceid_option_t f_deviceid;
+#endif
 
-
+#ifdef PCP_FLOW_PRIORITY
     //FLOW Priority Option
     uint8_t             flowp_option_present;
     uint8_t             flowp_dscp_up;
     uint8_t             flowp_dscp_down;
+#endif
 
     //PREFER FAILURE Option
     uint8_t             pfailure_option_present;
@@ -128,9 +136,11 @@ struct pcp_flow {
     uint16_t            filter_port;
     struct in6_addr     filter_ip;
 
+#ifdef PCP_EXPERIMENTAL
     //MD Option
-    uint32_t             md_val_count;
+    uint32_t            md_val_count;
     md_val_t           *md_vals;
+#endif
 
     //msg buffer
     uint32_t            pcp_msg_len;
@@ -179,7 +189,9 @@ pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data);
 
 void pcp_flow_clear_msg_buf(pcp_flow_t f);
 
+#ifdef PCP_EXPERIMENTAL
 void pcp_db_add_md(pcp_flow_t f, uint16_t md_id, void* val, size_t val_len);
+#endif
 
 int pcp_new_server(struct in6_addr *ip, uint16_t port);
 

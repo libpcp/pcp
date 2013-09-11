@@ -382,6 +382,7 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
 
         //f = pcp_create_flow(s, d->kd);
         CHECK_NULL_EXIT((f = pcp_create_flow(s, d->kd)));
+#ifdef PCP_SADSCP
         if (d->kd->operation == PCP_OPCODE_SADSCP) {
             f->sadscp.toler_fields = d->toler_fields;
             if (d->app_name) {
@@ -392,6 +393,7 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
                 f->sadscp_app_name = NULL;
             }
         }
+#endif
         init_flow(f, s, d->lifetime, d->ext_addr);
         if (d->fprev) {
             d->fprev->next_child = f;
@@ -545,7 +547,7 @@ void pcp_flow_set_prefer_failure_opt (pcp_flow_t f)
         }
     }
 }
-
+#ifdef PCP_EXPERIMENTAL
 int pcp_flow_set_userid(pcp_flow_t f, pcp_userid_option_p user)
 {
     pcp_flow_t fiter;
@@ -578,7 +580,18 @@ int pcp_flow_set_deviceid(pcp_flow_t f, pcp_deviceid_option_p dev)
     return 0;
 }
 
+void
+pcp_flow_add_md (pcp_flow_t f, uint32_t md_id, void *value, size_t val_len)
+{
+    pcp_flow_t fiter;
+    for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
+        pcp_db_add_md(fiter, md_id, value, val_len);
+        pcp_flow_updated(fiter);
+    }
+}
+#endif
 
+#ifdef PCP_FLOW_PRIORITY
 void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down)
 {
     pcp_flow_t fiter;
@@ -594,16 +607,7 @@ void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down)
         pcp_flow_updated(fiter);
     }
 }
-
-void
-pcp_flow_add_md (pcp_flow_t f, uint32_t md_id, void *value, size_t val_len)
-{
-    pcp_flow_t fiter;
-    for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
-        pcp_db_add_md(fiter, md_id, value, val_len);
-        pcp_flow_updated(fiter);
-    }
-}
+#endif
 
 static inline void pcp_close_flow_intern(pcp_flow_t f)
 {
@@ -701,8 +705,10 @@ pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf, size_t *info_count)
             (*info_buf)[n-1].dst_port = fiter->kd.map_peer.dst_port;
             (*info_buf)[n-1].ext_port = fiter->map_peer.ext_port;
             (*info_buf)[n-1].protocol = fiter->kd.map_peer.protocol;
+#ifdef PCP_SADSCP
         } else if (fiter->kd.operation == PCP_OPCODE_SADSCP){
             (*info_buf)[n-1].learned_dscp = fiter->sadscp.learned_dscp;
+#endif
         }
     }
     *info_count = n;
@@ -710,7 +716,7 @@ pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf, size_t *info_count)
     return (*info_buf);
 }
 
-
+#ifdef PCP_SADSCP
 pcp_flow_t pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
 uint8_t jitter_tol, char* app_name)
 {
@@ -738,3 +744,4 @@ uint8_t jitter_tol, char* app_name)
 
     return data.ffirst;
 }
+#endif

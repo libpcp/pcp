@@ -128,14 +128,31 @@ typedef pcp_deviceid_option_t pcp_app_deviceid_t;
 #define NOSHORT ""
 #define SHORT(a) "-"#a
 
+#ifdef PCP_FLOW_PRIORITY
+#define IFDEF_PCP_FLOW_PRIORITY(...)  __VA_ARGS__
+#else
+#define IFDEF_PCP_FLOW_PRIORITY(...)
+#endif
 
+#ifdef PCP_SADSCP
+#define IFDEF_PCP_SADSCP(...)  __VA_ARGS__
+#else
+#define IFDEF_PCP_SADSCP(...)
+#endif
+
+#ifdef PCP_EXPERIMENTAL
+#define IFDEF_PCP_EXPERIMENTAL(...) __VA_ARGS__
+#else
+#define IFDEF_PCP_EXPERIMENTAL(...)
+#endif
+
+#define IFDEF(A, B) IFDEF_##A(B)
 
 #define TABS0
 #define TABS1 "\t"
 #define TABS2 "\t\t"
 #define TABS3 "\t\t\t"
 #define TABS4 "\t\t\t\t"
-
 
 #define FOREACH_OPTION(OPTION, HELP_MSG, REQARG, NOARG) \
  HELP_MSG("Usage:") \
@@ -158,43 +175,47 @@ typedef pcp_deviceid_option_t pcp_app_deviceid_t;
  OPTION(SHORT(l), lifetime,   "lifetime",             REQARG, TABS1 "Set flow's lifetime(in seconds).") \
  HELP_MSG(                                                          "") \
  HELP_MSG(                                                          "PCP options for MAP/PEER operation:") \
- HELP_MSG(                                                          "") \
- HELP_MSG(                                                          " Flow priority option:") \
- OPTION(SHORT(U), dscp_up,    "dscp-up",              REQARG, TABS2 "Flow priority DSCP UP value.")\
- OPTION(SHORT(D), dscp_down,  "dscp-down",            REQARG, TABS1 "Flow priority DSCP DOWN value.")\
+ IFDEF(PCP_FLOW_PRIORITY, \
+   HELP_MSG(                                                          "") \
+   HELP_MSG(                                                          " Flow priority option:") \
+   OPTION(SHORT(U), dscp_up,    "dscp-up",              REQARG, TABS2 "Flow priority DSCP UP value.") \
+   OPTION(SHORT(D), dscp_down,  "dscp-down",            REQARG, TABS1 "Flow priority DSCP DOWN value.") )\
  HELP_MSG(                                                          "") \
  HELP_MSG(                                                          " Prefer failure option:") \
  OPTION(SHORT(P), pfailure,    "prefer-failure",      NOARG, TABS1 "Add prefer failure option to MAP opcode")\
  HELP_MSG(                                                          "") \
- HELP_MSG(                                                          "Filter option:") \
+ HELP_MSG(                                                          " Filter option:") \
  OPTION(SHORT(F), filter,      "filter",              REQARG, TABS2 "Add filter option to MAP opcode\n"\
-                                                              TABS4 "Permitted remote peer IP and port and prefix MUST \n" \
+                                                              TABS4 "Permitted remote peer addresses MUST \n" \
                                                               TABS4 "have following format [ip_address/prefix]:port") \
  HELP_MSG(                                                          "") \
- HELP_MSG(                                                          " Metadata option:") \
- HELP_MSG(                                                    TABS4 "It's possible to add several metadata options by") \
- HELP_MSG(                                                    TABS4 "adding the following options several times.")\
- OPTION(SHORT(I), md_id,      "metadata-id",          REQARG, TABS1 "Metadata ID.")\
- OPTION(SHORT(V), md_val,     "metadata-value",       REQARG, TABS1 "Metadata value.")\
- HELP_MSG(                                                          "") \
- HELP_MSG(                                                          " Other MAP/PEER options:") \
- OPTION(NOSHORT,  dev_id,     "device-id",            NOARG , TABS1 "System Dependent. Usually Sysname + Machine Name")\
- OPTION(NOSHORT,  location,   "location",             NOARG , TABS1 "Latitude and Longitude.")\
- OPTION(NOSHORT,  user_id,    "user-id",              REQARG, TABS2 "user@domain")\
- HELP_MSG(                                                          "") \
- HELP_MSG(                                                          "Learn DSCP(SADSCP operation):") \
- HELP_MSG(                                                    TABS4 "Get DSCP value from PCP server for") \
- HELP_MSG(                                                    TABS4 "jitter/loss/delay tolerances and/or app name.") \
- OPTION(SHORT(J), sadscp_jit, "jitter-tolerance",     REQARG,       "Jitter tolerance (DEFAULT:3).")\
- OPTION(SHORT(L), sadscp_los, "loss-tolerance",       REQARG, TABS1 "Loss tolerance (DEFAULT:3).")\
- OPTION(SHORT(E), sadscp_del, "delay-tolerance",      REQARG, TABS1 "Delay tolerance (DEFAULT:3).")\
- OPTION(SHORT(A), sadscp_app, "app-name",             REQARG, TABS1 "Application name.")\
+ IFDEF(PCP_EXPERIMENTAL, \
+   HELP_MSG(                                                          " Metadata option:") \
+   HELP_MSG(                                                    TABS4 "It's possible to add several metadata options by") \
+   HELP_MSG(                                                    TABS4 "adding the following options several times.")\
+   OPTION(SHORT(I), md_id,      "metadata-id",          REQARG, TABS1 "Metadata ID.")\
+   OPTION(SHORT(V), md_val,     "metadata-value",       REQARG, TABS1 "Metadata value.")\
+   HELP_MSG(                                                          "") \
+   HELP_MSG(                                                          " Other MAP/PEER options:") \
+   OPTION(NOSHORT,  dev_id,     "device-id",            NOARG , TABS1 "System Dependent. Usually Sysname + Machine Name")\
+   OPTION(NOSHORT,  location,   "location",             NOARG , TABS1 "Latitude and Longitude.")\
+   OPTION(NOSHORT,  user_id,    "user-id",              REQARG, TABS2 "user@domain")\
+   HELP_MSG(                                                          "") )\
+ IFDEF(PCP_SADSCP, \
+   HELP_MSG(                                                          "Learn DSCP(SADSCP operation):") \
+   HELP_MSG(                                                    TABS4 "Get DSCP value from PCP server for") \
+   HELP_MSG(                                                    TABS4 "jitter/loss/delay tolerances and/or app name.") \
+   OPTION(SHORT(J), sadscp_jit, "jitter-tolerance",     REQARG,       "Jitter tolerance (DEFAULT:3).")\
+   OPTION(SHORT(L), sadscp_los, "loss-tolerance",       REQARG, TABS1 "Loss tolerance (DEFAULT:3).")\
+   OPTION(SHORT(E), sadscp_del, "delay-tolerance",      REQARG, TABS1 "Delay tolerance (DEFAULT:3).")\
+   OPTION(SHORT(A), sadscp_app, "app-name",             REQARG, TABS1 "Application name.") )\
 
 
 #define STRUCT_OPTION(a, b, c, d, e) {c, d, 0, 0},
 #define IGNORE(a)
 #define STRUCT_REQARG required_argument
 #define STRUCT_NOARG no_argument
+
 
 static struct option long_options[] = {
         FOREACH_OPTION(STRUCT_OPTION, IGNORE, STRUCT_REQARG, STRUCT_NOARG)
@@ -454,10 +475,13 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
+#ifdef PCP_FLOW_PRIORITY
         if (p.opt_flowp) {
             pcp_flow_set_flowp(flow, p.opt_dscp_up, p.opt_dscp_down);
         }
+#endif
 
+#ifdef PCP_EXPERIMENTAL
         if ( p.is_md ) {
             pcp_flow_add_md(flow, p.opt_mdid, p.opt_md_val, p.opt_md_val_len);
         }
@@ -474,6 +498,7 @@ int main(int argc, char *argv[])
         if (p.app_userid.userid[0] != '\0') {
             pcp_flow_set_userid(flow, &p.app_userid);
         }
+#endif
 
         if (p.opt_filter) {
             pcp_flow_set_filter_opt(flow, (struct sockaddr*)&filter_ip,
@@ -484,9 +509,11 @@ int main(int argc, char *argv[])
             pcp_flow_set_prefer_failure_opt(flow);
         }
 
+#ifdef PCP_SADSCP
     } else if (p.has_sadscp_data) {
         flow = pcp_learn_dscp(p.delay_tolerance, p.loss_tolerance,
                 p.jitter_tolerance, p.app_name);
+#endif
     }
     switch (pcp_wait(flow, p.timeout, p.fast_return)) {
     case pcp_state_processing:
@@ -605,6 +632,7 @@ void static inline parse_opt_lifetime(struct pcp_params *p)
     p->opt_lifetime = (uint32_t)atoi(optarg);
 }
 
+#ifdef PCP_FLOW_PRIORITY
 void static inline parse_opt_dscp_up(struct pcp_params *p)
 {
     p->opt_dscp_up=(uint8_t)atoi(optarg);
@@ -618,7 +646,9 @@ void static inline parse_opt_dscp_down(struct pcp_params *p)
     p->opt_flowp = 1;
     p->has_mappeer_data = 1;
 }
+#endif
 
+#ifdef PCP_EXPERIMENTAL
 void static inline parse_opt_md_id(struct pcp_params *p)
 {
     p->opt_mdid = (uint32_t)atoi(optarg);
@@ -628,7 +658,7 @@ void static inline parse_opt_md_id(struct pcp_params *p)
 
 void static inline parse_opt_md_val(struct pcp_params *p)
 {
-    p->opt_md_val_len = strlen(optarg);
+    p->opt_md_val_len = (optarg==NULL)?0:strlen(optarg);
     if (p->opt_md_val_len > sizeof(p->opt_md_val)) {
         p->opt_md_val_len = sizeof(p->opt_md_val);
     }
@@ -689,6 +719,13 @@ void static inline parse_opt_location(struct pcp_params *p)
     fprintf(stderr, "Location: %s \n", &(p->app_location.location[0]));
 }
 
+void static inline parse_opt_user_id(struct pcp_params *p)
+{
+    strncpy(p->app_userid.userid, optarg, sizeof(p->app_userid.userid));
+    fprintf(stderr, "Userid: %s \n", &(p->app_userid.userid[0]));
+}
+
+#endif
 void static inline parse_opt_filter(struct pcp_params *p)
 {
     p->filter_addr=optarg;
@@ -702,12 +739,7 @@ void static inline parse_opt_pfailure(struct pcp_params *p)
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_user_id(struct pcp_params *p)
-{
-    strncpy(p->app_userid.userid, optarg, sizeof(p->app_userid.userid));
-    fprintf(stderr, "Userid: %s \n", &(p->app_userid.userid[0]));
-}
-
+#ifdef PCP_SADSCP
 void static inline parse_opt_sadscp_jit(struct pcp_params *p)
 {
     p->jitter_tolerance=(uint8_t)atoi(optarg);
@@ -731,6 +763,7 @@ void static inline parse_opt_sadscp_app(struct pcp_params *p)
     p->app_name=optarg;
     p->has_sadscp_data=1;
 }
+#endif
 
 #define PARSE_OPTION(A, B, C, D, E) if (((c==0) && (option_index==E_##B))||(c==A[0]&&(c!=0))) {\
     parse_opt_##B(p);\

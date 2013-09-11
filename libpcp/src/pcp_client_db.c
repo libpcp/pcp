@@ -116,13 +116,17 @@ pcp_errno pcp_delete_flow_intern(pcp_flow_t f)
         free(f->pcp_msg_buffer);
     }
 
+#ifdef PCP_EXPERIMENTAL
     if (f->md_vals) {
         free(f->md_vals);
     }
+#endif
 
+#ifdef PCP_SADSCP
     if (f->sadscp_app_name) {
         free(f->sadscp_app_name);
     }
+#endif
 
     if ((f->pcp_server_indx!=PCP_INV_SERVER) &&
             ((s=get_pcp_server(f->pcp_server_indx))!=NULL) &&
@@ -224,6 +228,7 @@ pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data)
     return PCP_ERR_NOT_FOUND;
 }
 
+#ifdef PCP_EXPERIMENTAL
 void pcp_db_add_md(pcp_flow_t f, uint16_t md_id, void* val, size_t val_len)
 {
     md_val_t * md;
@@ -261,6 +266,7 @@ void pcp_db_add_md(pcp_flow_t f, uint16_t md_id, void* val, size_t val_len)
         md->val_len=0;
     }
 }
+#endif
 
 int pcp_new_server(struct in6_addr *ip, uint16_t port)
 {

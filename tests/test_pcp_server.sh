@@ -92,52 +92,52 @@ grep -q "PEER Opcode specific information." test.log || echo_exit "Failed log il
 killall pcp-server &>/dev/null
 
 # Options tests
-pcp-server --log-file test.log --timeout 1000 &>/dev/null &
-sleep 0.1
-pcp -s 127.0.0.1 -i :1234 -p 127.0.0.1:8888 --user-id user@example.com --location --device-id &>/dev/null &
-sleep 1.6
-grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #5.1"
-grep -q "PEER Opcode specific information." test.log || echo_exit "Failed log ile test #5.2"
+#pcp-server --log-file test.log --timeout 1000 &>/dev/null &
+#sleep 0.1
+#pcp -s 127.0.0.1 -i :1234 -p 127.0.0.1:8888 --user-id user@example.com --location --device-id &>/dev/null &
+#sleep 1.6
+#grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #5.1"
+#grep -q "PEER Opcode specific information." test.log || echo_exit "Failed log ile test #5.2"
 #grep -q "OPTION: 	 Device ID" test.log || echo_exit "Failed log ile test #5.3"
-grep -q "OPTION: 	 User ID" test.log || echo_exit "Failed log ile test #5.4"
-grep -q "OPTION: 	 Location" test.log || echo_exit "Failed log ile test #5.5"
-grep -q "" test.log || echo_exit "Failed log ile test #5.6"
-grep -q "" test.log || echo_exit "Failed log ile test #5.7"
-killall pcp-server &>/dev/null
+#grep -q "OPTION: 	 User ID" test.log || echo_exit "Failed log ile test #5.4"
+#grep -q "OPTION: 	 Location" test.log || echo_exit "Failed log ile test #5.5"
+#grep -q "" test.log || echo_exit "Failed log ile test #5.6"
+#grep -q "" test.log || echo_exit "Failed log ile test #5.7"
+#killall pcp-server &>/dev/null
 
-pcp-server --log-file test.log --timeout 1000 &>/dev/null &
-sleep 0.1
-pcp -s 127.0.0.1 -i :1234 --metadata-id 96 --metadata-value "testing" &>/dev/null &
-sleep 1.6
-grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #6.1"
-grep -q "MAP" test.log || echo_exit "Failed log ile test #6"
-grep -q "OPTION: 	 Metadata" test.log || echo_exit "Failed log ile test #6.2"
-grep -q "METADATA ID" test.log || echo_exit "Failed log ile test #6.3"
-grep -q "METADATA 	 testing" test.log || echo_exit "Failed log ile test #6.4"
-killall pcp-server &>/dev/null
+#pcp-server --log-file test.log --timeout 1000 &>/dev/null &
+#sleep 0.1
+#pcp -s 127.0.0.1 -i :1234 --metadata-id 96 --metadata-value "testing" &>/dev/null &
+#sleep 1.6
+#grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #6.1"
+#grep -q "MAP" test.log || echo_exit "Failed log ile test #6"
+#grep -q "OPTION: 	 Metadata" test.log || echo_exit "Failed log ile test #6.2"
+#grep -q "METADATA ID" test.log || echo_exit "Failed log ile test #6.3"
+#grep -q "METADATA 	 testing" test.log || echo_exit "Failed log ile test #6.4"
+#killall pcp-server &>/dev/null
 
-pcp-server --log-file test.log --timeout 1000 &>/dev/null &
-sleep 0.1
-pcp -s 127.0.0.1 -i :1234 --dscp-up 10 --dscp-down 10 &>/dev/null &
-sleep 1.6
-grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #7.1"
-grep -q "MAP" test.log || echo_exit "Failed log file test #7.2"
-grep -q "OPTION: 	 Flow priority" test.log || echo_exit "Failed log file test #7.3"
-grep -q "DSCP UP: 	 10" test.log || echo_exit "Failed log file test #7.4"
-grep -q "DSCP DOWN: 	 10" test.log || echo_exit "Failed log file test #7.5"
-killall pcp-server &>/dev/null
+#pcp-server --log-file test.log --timeout 1000 &>/dev/null &
+#sleep 0.1
+#pcp -s 127.0.0.1 -i :1234 --dscp-up 10 --dscp-down 10 &>/dev/null &
+#sleep 1.6
+#grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #7.1"
+#grep -q "MAP" test.log || echo_exit "Failed log file test #7.2"
+#grep -q "OPTION: 	 Flow priority" test.log || echo_exit "Failed log file test #7.3"
+#grep -q "DSCP UP: 	 10" test.log || echo_exit "Failed log file test #7.4"
+#grep -q "DSCP DOWN: 	 10" test.log || echo_exit "Failed log file test #7.5"
+#killall pcp-server &>/dev/null
 
-pcp-server --log-file test.log --timeout 1000 &>/dev/null &
-sleep 0.1
-pcp -s 127.0.0.1 -J 0 -E 1 -L 2 -A Webex &>/dev/null &
-sleep 1.6
-grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #8.1"
-grep -q "SADSCP Opcode specific information." test.log || echo_exit "Failed log file test #8.2"
-grep -q "Jitter tolerance:	 0" test.log || echo_exit "Failed log file test #8.3"
-grep -q "Delay tolerance:  	 1" test.log || echo_exit "Failed log file test #8.4"
-grep -q "Loss tolerance: 	 2" test.log || echo_exit "Failed log file test #8.5"
-grep -q "App name:        	 Webex" test.log || echo_exit "Failed log file test #8.6"
-killall pcp-server &>/dev/null
+#pcp-server --log-file test.log --timeout 1000 &>/dev/null &
+#sleep 0.1
+#pcp -s 127.0.0.1 -J 0 -E 1 -L 2 -A Webex &>/dev/null &
+#sleep 1.6
+#grep -q "PCP protocol VERSION 2." test.log || echo_exit "Failed log file test #8.1"
+#grep -q "SADSCP Opcode specific information." test.log || echo_exit "Failed log file test #8.2"
+#grep -q "Jitter tolerance:	 0" test.log || echo_exit "Failed log file test #8.3"
+#grep -q "Delay tolerance:  	 1" test.log || echo_exit "Failed log file test #8.4"
+#grep -q "Loss tolerance: 	 2" test.log || echo_exit "Failed log file test #8.5"
+#grep -q "App name:        	 Webex" test.log || echo_exit "Failed log file test #8.6"
+#killall pcp-server &>/dev/null
 
 pcp-server --log-file test.log --timeout 1000 &>/dev/null &
 sleep 0.1

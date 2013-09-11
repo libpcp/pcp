@@ -22,8 +22,7 @@
 
 int main()
 {
-    pcp_flow_t l1, f1, f2;
-    pcp_flow_info_t * info;
+    pcp_flow_t f1, f2;
 
     pcp_log_level = PCP_DEBUG_NONE;
 
@@ -40,25 +39,29 @@ int main()
     TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==1);
     pcp_terminate(1);
 
-
+#ifdef PCP_SADSCP
     //TEST learn DSCP
-    TEST((l1=pcp_learn_dscp(1,1,1,NULL))==NULL); //NO PCP server to send req
+    {
+        pcp_flow_t l1;
+        TEST((l1=pcp_learn_dscp(1,1,1,NULL))==NULL); //NO PCP server to send req
 
-    TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==0);
-    TEST((l1=pcp_learn_dscp(1,1,1,NULL))!=NULL);
-    TEST(l1->kd.operation==PCP_OPCODE_SADSCP);
-    TEST(l1->sadscp_app_name==NULL);
-    TEST(l1->sadscp.app_name_length==0);
-    TEST(l1->sadscp.toler_fields==84);
-    pcp_close_flow(l1);
-    pcp_delete_flow(l1);
+        TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==0);
+        TEST((l1=pcp_learn_dscp(1,1,1,NULL))!=NULL);
+        TEST(l1->kd.operation==PCP_OPCODE_SADSCP);
+        TEST(l1->sadscp_app_name==NULL);
+        TEST(l1->sadscp.app_name_length==0);
+        TEST(l1->sadscp.toler_fields==84);
+        pcp_close_flow(l1);
+        pcp_delete_flow(l1);
 
-    TEST((l1=pcp_learn_dscp(2,2,2,"test"))!=NULL);
-    TEST(l1->sadscp.app_name_length==4);
-    TEST(strncmp(l1->sadscp_app_name,"test",l1->sadscp.app_name_length)==0);
-    TEST(l1->sadscp.toler_fields==168);
+        TEST((l1=pcp_learn_dscp(2,2,2,"test"))!=NULL);
+        TEST(l1->sadscp.app_name_length==4);
+        TEST(strncmp(l1->sadscp_app_name,"test",l1->sadscp.app_name_length)==0);
+        TEST(l1->sadscp.toler_fields==168);
 
-    pcp_terminate(1);
+        pcp_terminate(1);
+    }
+#endif
 
     TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==0);
     //TEST pcp_set_read_fdset
@@ -88,7 +91,6 @@ int main()
 
     pcp_handle_select(0, NULL, NULL);
     pcp_flow_get_info(NULL, NULL, NULL);
-    pcp_flow_get_info(l1, &info, NULL);
 
     //PCP PEER/MAP tests
     TEST(pcp_new_flow(NULL, NULL, NULL, 0, 0)==NULL);

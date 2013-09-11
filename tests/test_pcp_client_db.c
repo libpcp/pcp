@@ -176,6 +176,7 @@ void test_pcp_flow_funcs()
     TEST(pcp_get_flow(&fkd2, 0)==NULL);
     TEST(pcp_get_flow(NULL, 0)==NULL);
 
+#ifdef PCP_EXPERIMENTAL
     pcp_db_add_md(f1, 11, "test", sizeof("test"));
     TEST(f1->md_val_count==1);
     pcp_db_add_md(f1, 11, "atest", sizeof("atest"));
@@ -185,6 +186,8 @@ void test_pcp_flow_funcs()
     pcp_db_add_md(f1, 0,NULL,0);
     pcp_db_add_md(NULL,0,NULL,0);
     TEST(f1->md_val_count==3);
+#endif
+
     TEST(pcp_delete_flow_intern(f1)==PCP_ERR_SUCCESS);
     TEST(pcp_delete_flow_intern(f2)==PCP_ERR_SUCCESS);
 
