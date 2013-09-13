@@ -337,8 +337,7 @@ init_flow(pcp_flow_t f, pcp_server_t* s, int lifetime,
                 sizeof(dst_buf));
             inet_ntop(AF_INET6, &f->kd.pcp_server_ip, pcp_buf, sizeof(pcp_buf));
             PCP_LOGGER(PCP_DEBUG_INFO,
-                "Added new flow info:\n\tPCP server: %s\n\tInt.  addr: [%s]:%d \n\tDest. addr: [%s]:%d\n"
-                "\tKey bucket: %d",
+                "Added new flow(PCP server: %s; Int. addr: [%s]:%d; Dest. addr: [%s]:%d; Key bucket: %d)",
                 pcp_buf,
                 src_buf,
                 ntohs(f->kd.map_peer.src_port),

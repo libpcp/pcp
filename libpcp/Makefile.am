@@ -4,10 +4,10 @@ AM_CFLAGS = $(PCP_CFLAGS)
 
 pkginclude_HEADERS = include/pcp.h
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libpcp.pc
+pkgconfig_DATA = libpcp-client.pc
 
-lib_LTLIBRARIES = libpcp.la
-libpcp_la_SOURCES = src/pcp_logger.c\
+lib_LTLIBRARIES = libpcp-client.la
+libpcp_client_la_SOURCES = src/pcp_logger.c\
                     src/pcp_server_discovery.c\
                     src/pcp_client_db.c\
                     src/pcp_msg.c\
@@ -29,7 +29,7 @@ noinst_HEADERS =    src/net/pcp_socket.h\
                     src/net/findsaddr.h \
                     src/net/unp.h
 
-libpcp_la_LDFLAGS = -version-info 0:0:0 -release 2 ${PCP_LDFLAGS}
+libpcp_client_la_LDFLAGS = -version-info 0:0:0 -release 2 ${PCP_LDFLAGS}
 
-libpcp_la_LIBADD = $(GCOVLIB)
+libpcp_client_la_LIBADD = $(GCOVLIB)
 

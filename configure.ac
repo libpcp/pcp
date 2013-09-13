@@ -1,4 +1,4 @@
-AC_INIT([pcp], [1.6], [aeon@cisco.com])
+AC_INIT([pcp-client], [1.6], [aeon@cisco.com])
 AC_CANONICAL_SYSTEM
 AC_PREREQ([2.62])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign color-tests])
@@ -9,7 +9,7 @@ AC_PROG_CC
 AC_CONFIG_FILES([
  Makefile
  libpcp/Makefile
- libpcp/libpcp.pc
+ libpcp/libpcp-client.pc
  pcp_server/Makefile
  pcp_app/Makefile
  tests/Makefile

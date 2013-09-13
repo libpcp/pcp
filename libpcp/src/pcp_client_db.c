@@ -328,7 +328,7 @@ pcp_server_t * get_pcp_server(int pcp_server_index)
     if ((pcp_server_index < 0)
             || ((unsigned)pcp_server_index >= pcp_db.pcp_servers_length)) {
         PCP_LOGGER(PCP_DEBUG_WARN,
-                "server index(%d) out of bounds(%zu)\n", pcp_server_index,
+                "server index(%d) out of bounds(%zu)", pcp_server_index,
                 pcp_db.pcp_servers_length);
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return NULL;
