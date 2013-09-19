@@ -189,7 +189,7 @@ int main(void)
         TEST(parse_response(&msg)!=PCP_ERR_SUCCESS);
     }
     {  //TEST build msg
-        struct pcp_flow fs;
+        struct pcp_flow_s fs;
         pcp_server_t *s;
 
         memset(&fs, 0, sizeof(fs));

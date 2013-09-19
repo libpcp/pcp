@@ -41,7 +41,7 @@
 #include "pcp_client_db.h"
 #include "pcp_msg_structs.h"
 
-void* build_pcp_msg(struct pcp_flow* flow);
+void* build_pcp_msg(struct pcp_flow_s* flow);
 
 typedef struct pcp_recv_msg {
     opt_flags_e         opt_flags;

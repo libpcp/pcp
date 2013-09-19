@@ -264,7 +264,7 @@ const char* decode_fresult(pcp_fstate_e s)
     }
 }
 
-int check_flow_info(pcp_flow_t f)
+int check_flow_info(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
@@ -298,7 +298,7 @@ int check_flow_info(pcp_flow_t f)
     return ret_val;
 }
 
-void print_ext_addr(pcp_flow_t f)
+void print_ext_addr(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
@@ -339,7 +339,7 @@ void print_ext_addr(pcp_flow_t f)
     }
 }
 
-void print_get_dscp(pcp_flow_t f)
+void print_get_dscp(pcp_flow_t* f)
 {
     size_t cnt=0;
      pcp_flow_info_t *info_buf = NULL;
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
     struct sockaddr_storage ext_ip;
     struct sockaddr_storage filter_ip;
     int ret_val = 1;
-    pcp_flow_t flow = NULL;
+    pcp_flow_t* flow = NULL;
 
     PD_SOCKET_STARTUP();
 

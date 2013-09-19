@@ -44,7 +44,7 @@ struct pcp_client_db {
     size_t pcp_servers_length;
     pcp_server_t *pcp_servers;
     size_t flow_cnt;
-    pcp_flow_t flows[FLOW_HASH_SIZE];
+    pcp_flow_t* flows[FLOW_HASH_SIZE];
 } pcp_db = { 0, NULL, 0, {0} };
 
 static uint32_t compute_flow_key(struct flow_key_data *kd)
@@ -63,9 +63,9 @@ static uint32_t compute_flow_key(struct flow_key_data *kd)
     return h;
 }
 
-pcp_flow_t pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
+pcp_flow_t* pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
 {
-    pcp_flow_t flow;
+    pcp_flow_t* flow;
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 
     if (!fkd) {
@@ -73,7 +73,7 @@ pcp_flow_t pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
         return NULL;
     }
 
-    flow = (pcp_flow_t) calloc(1, sizeof(struct pcp_flow));
+    flow = (pcp_flow_t*) calloc(1, sizeof(struct pcp_flow_s));
     if (flow == NULL) { //LCOV_EXCL_START
         PCP_LOGGER(PCP_DEBUG_ERR,"%s",
                 "Malloc can't allocate enough memory for the pcp_flow.");
@@ -91,7 +91,7 @@ pcp_flow_t pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
     return flow;
 }
 
-void pcp_flow_clear_msg_buf(pcp_flow_t f)
+void pcp_flow_clear_msg_buf(pcp_flow_t* f)
 {
     if (f) {
         if (f->pcp_msg_buffer) {
@@ -102,7 +102,7 @@ void pcp_flow_clear_msg_buf(pcp_flow_t f)
     }
 }
 
-pcp_errno pcp_delete_flow_intern(pcp_flow_t f)
+pcp_errno pcp_delete_flow_intern(pcp_flow_t* f)
 {
     pcp_server_t *s;
 
@@ -138,10 +138,10 @@ pcp_errno pcp_delete_flow_intern(pcp_flow_t f)
     return PCP_ERR_SUCCESS;
 }
 
-pcp_errno pcp_db_add_flow(pcp_flow_t f)
+pcp_errno pcp_db_add_flow(pcp_flow_t* f)
 {
     uint32_t index;
-    pcp_flow_t *fdb;
+    pcp_flow_t* *fdb;
     if (!f) {
         return PCP_ERR_BAD_ARGS;
     }
@@ -161,9 +161,9 @@ pcp_errno pcp_db_add_flow(pcp_flow_t f)
     return PCP_ERR_SUCCESS;
 }
 
-pcp_flow_t pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx)
+pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx)
 {
-    pcp_flow_t *fdb;
+    pcp_flow_t* *fdb;
     uint32_t bucket;
     if (!fkd) {
         return NULL;
@@ -182,9 +182,9 @@ pcp_flow_t pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx)
     return NULL;
 }
 
-pcp_errno pcp_db_rem_flow(pcp_flow_t f)
+pcp_errno pcp_db_rem_flow(pcp_flow_t* f)
 {
-    pcp_flow_t *fdb = NULL;
+    pcp_flow_t* *fdb = NULL;
     if ((!f)||(f->key_bucket==EMPTY)) {
         return PCP_ERR_BAD_ARGS;
     }
@@ -206,7 +206,7 @@ pcp_errno pcp_db_rem_flow(pcp_flow_t f)
 
 pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data)
 {
-    pcp_flow_t fdb, fdb_next = NULL;
+    pcp_flow_t *fdb, *fdb_next = NULL;
     uint32_t index;
 
     if (!f) {
@@ -229,7 +229,7 @@ pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data)
 }
 
 #ifdef PCP_EXPERIMENTAL
-void pcp_db_add_md(pcp_flow_t f, uint16_t md_id, void* val, size_t val_len)
+void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len)
 {
     md_val_t * md;
     uint32_t i;

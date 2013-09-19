@@ -66,25 +66,25 @@
 
 
 static pcp_flow_event_e
-fhndl_send(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_send(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_resend(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_resend(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_send_renew(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_send_renew(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_shortlifeerror(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_shortlifeerror(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_received_success(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_received_success(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_clear_timeouts(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_clear_timeouts(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_flow_event_e
-fhndl_waitresp(pcp_flow_t f, pcp_recv_msg_t* msg);
+fhndl_waitresp(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s);
 static pcp_server_state_e handle_server_ping(pcp_server_t *s);
@@ -269,7 +269,7 @@ static const char *dbg_get_fstate_name(pcp_fstate_e s)
 //                  Flow State Machine definition
 
 typedef pcp_flow_event_e
-        (*handle_flow_state_event)(pcp_flow_t f, pcp_recv_msg_t* msg);
+        (*handle_flow_state_event)(pcp_flow_t* f, pcp_recv_msg_t* msg);
 
 typedef struct pcp_flow_state_trans {
     pcp_flow_state_e state_from;
@@ -347,7 +347,7 @@ pcp_flow_state_events_t flow_events_sm[] = {
 
 #define FLOW_EVENTS_SM_COUNT (sizeof(flow_events_sm)/sizeof(*flow_events_sm))
 
-static pcp_errno pcp_flow_send_msg(pcp_flow_t flow, pcp_server_t *s)
+static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
 {
     ssize_t ret;
     size_t to_send_count;
@@ -453,7 +453,7 @@ static pcp_errno read_msg_from_socket(PCP_SOCKET socket, pcp_recv_msg_t *msg)
 ///////////////////////////////////////////////////////////////////////////////
 //              Flow State Transitions Handlers
 
-static pcp_flow_event_e fhndl_send(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
+static pcp_flow_event_e fhndl_send(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
     pcp_server_t*s = get_pcp_server(f->pcp_server_indx);
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
@@ -481,7 +481,7 @@ static pcp_flow_event_e fhndl_send(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
     return fev_msg_sent;
 }
 
-static pcp_flow_event_e fhndl_resend(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
+static pcp_flow_event_e fhndl_resend(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
     pcp_server_t* s = get_pcp_server(f->pcp_server_indx);
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
@@ -525,7 +525,7 @@ static pcp_flow_event_e fhndl_resend(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
 }
 
 static pcp_flow_event_e
-fhndl_shortlifeerror(pcp_flow_t f, pcp_recv_msg_t* msg)
+fhndl_shortlifeerror(pcp_flow_t* f, pcp_recv_msg_t* msg)
 {
     PCP_LOGGER(PCP_DEBUG_DEBUG,
             "f->pcp_server_index=%d, f->state = %d, f->key_bucket=%d",
@@ -540,7 +540,7 @@ fhndl_shortlifeerror(pcp_flow_t f, pcp_recv_msg_t* msg)
 }
 
 static pcp_flow_event_e
-fhndl_received_success(pcp_flow_t f, pcp_recv_msg_t* msg)
+fhndl_received_success(pcp_flow_t* f, pcp_recv_msg_t* msg)
 {
     struct timeval ctv;
 
@@ -572,7 +572,7 @@ fhndl_received_success(pcp_flow_t f, pcp_recv_msg_t* msg)
 }
 
 static pcp_flow_event_e
-fhndl_send_renew(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
+fhndl_send_renew(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
     pcp_server_t* s = get_pcp_server(f->pcp_server_indx);
     long timeout_add;
@@ -599,7 +599,7 @@ fhndl_send_renew(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
 
 
 static pcp_flow_event_e
-fhndl_clear_timeouts(pcp_flow_t f, pcp_recv_msg_t* msg)
+fhndl_clear_timeouts(pcp_flow_t* f, pcp_recv_msg_t* msg)
 {
     if (msg) {
         f->recv_result = msg->recv_result;
@@ -611,7 +611,7 @@ fhndl_clear_timeouts(pcp_flow_t f, pcp_recv_msg_t* msg)
     return fev_none;
 }
 
-static pcp_flow_event_e fhndl_waitresp(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
+static pcp_flow_event_e fhndl_waitresp(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
     struct timeval ctv;
     gettimeofday(&ctv, NULL);
@@ -622,10 +622,10 @@ static pcp_flow_event_e fhndl_waitresp(pcp_flow_t f, UNUSED pcp_recv_msg_t* msg)
     return fev_none;
 }
 
-static void flow_change_notify(pcp_flow_t flow, pcp_fstate_e state);
+static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state);
 
 static pcp_flow_state_e
-handle_flow_event(pcp_flow_t f, pcp_flow_event_e ev, pcp_recv_msg_t *r)
+handle_flow_event(pcp_flow_t* f, pcp_flow_event_e ev, pcp_recv_msg_t *r)
 {
     pcp_flow_state_e cur_state = f->state, next_state;
     pcp_flow_state_events_t *esm;
@@ -708,9 +708,9 @@ end:
 ///////////////////////////////////////////////////////////////////////////////
 //            Helper functions for server state handlers
 
-static pcp_flow_t server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* msg)
+static pcp_flow_t* server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* msg)
 {
-    pcp_flow_t f;
+    pcp_flow_t* f;
 #ifndef PCP_DISABLE_NATPMP
     if (msg->recv_version == 0) {
         if (msg->kd.operation == NATPMP_OPCODE_ANNOUNCE) {
@@ -767,7 +767,7 @@ static pcp_flow_t server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* m
     return f;
 }
 
-static int check_flow_timeout(pcp_flow_t f, void * timeout)
+static int check_flow_timeout(pcp_flow_t* f, void * timeout)
 {
     struct timeval * tout = timeout;
     struct timeval ctv;
@@ -805,10 +805,10 @@ static int check_flow_timeout(pcp_flow_t f, void * timeout)
 
 struct get_first_flow_iter_data {
     pcp_server_t * s;
-    pcp_flow_t   msg;
+    pcp_flow_t*   msg;
 };
 
-static int get_first_flow_iter(pcp_flow_t f, void* data)
+static int get_first_flow_iter(pcp_flow_t* f, void* data)
 {
     struct get_first_flow_iter_data  *d =
             (struct get_first_flow_iter_data  *) data;
@@ -822,7 +822,7 @@ static int get_first_flow_iter(pcp_flow_t f, void* data)
 }
 
 #ifndef PCP_DISABLE_NATPMP
-static inline pcp_flow_t create_natpmp_ann_msg(pcp_server_t *s)
+static inline pcp_flow_t* create_natpmp_ann_msg(pcp_server_t *s)
 {
     struct flow_key_data    kd;
 
@@ -838,7 +838,7 @@ static inline pcp_flow_t create_natpmp_ann_msg(pcp_server_t *s)
 }
 #endif
 
-static inline pcp_flow_t get_ping_msg(pcp_server_t *s)
+static inline pcp_flow_t* get_ping_msg(pcp_server_t *s)
 {
     struct get_first_flow_iter_data find_data;
 
@@ -862,7 +862,7 @@ struct flow_iterator_data {
     pcp_event_e   event;
 };
 
-static int flow_send_event_iter(pcp_flow_t f, void* data)
+static int flow_send_event_iter(pcp_flow_t* f, void* data)
 {
     struct flow_iterator_data * d = (struct flow_iterator_data *) data;
 
@@ -880,7 +880,7 @@ static int flow_send_event_iter(pcp_flow_t f, void* data)
 
 static pcp_server_state_e handle_server_ping(pcp_server_t *s)
 {
-    pcp_flow_t msg;
+    pcp_flow_t* msg;
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     s->ping_count = 0;
     if (s->pcp_server_socket == PCP_INVALID_SOCKET) {
@@ -952,7 +952,7 @@ static pcp_server_state_e handle_wait_ping_resp_recv(pcp_server_t* s)
 
 static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
 {
-    pcp_flow_t ping_msg;
+    pcp_flow_t* ping_msg;
 
     if (s->next_version == s->pcp_version)  {
         s->next_version--;
@@ -1032,7 +1032,7 @@ static pcp_server_state_e handle_server_restart(pcp_server_t* s)
 static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s)
 {
     pcp_recv_msg_t msg;
-    pcp_flow_t f;
+    pcp_flow_t* f;
 
     if (read_msg_from_socket(s->pcp_server_socket, &msg) != PCP_ERR_SUCCESS) {
         gettimeofday(&s->next_timeout, NULL);
@@ -1132,7 +1132,7 @@ static pcp_server_state_e handle_server_not_working(pcp_server_t *s)
     gettimeofday(&ctv, NULL);
     if (timeval_comp(&ctv,&s->next_timeout)<0) {
         pcp_recv_msg_t msg;
-        pcp_flow_t f;
+        pcp_flow_t* f;
         if (read_msg_from_socket(s->pcp_server_socket, &msg) !=
             PCP_ERR_SUCCESS) {
             gettimeofday(&s->next_timeout, NULL);
@@ -1413,7 +1413,7 @@ pcp_handle_fd_event(PCP_SOCKET fd, int timed_out, struct timeval *next_timeout)
     }
 }
 
-void pcp_flow_updated(pcp_flow_t f)
+void pcp_flow_updated(pcp_flow_t* f)
 {
     struct timeval curtime;
     pcp_server_t*s;
@@ -1457,7 +1457,7 @@ fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, in_port_t sport)
     }
 }
 
-static void flow_change_notify(pcp_flow_t flow, pcp_fstate_e state)
+static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state)
 {
     struct sockaddr_storage src_addr, ext_addr;
     PCP_LOGGER_DEBUG(

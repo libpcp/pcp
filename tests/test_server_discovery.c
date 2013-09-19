@@ -39,7 +39,7 @@ int print_status(pcp_server_t* s, void* data)
 
 int main(int argc, char* argv[])
 {
-    pcp_flow_t f;
+    pcp_flow_t* f;
     pcp_fstate_e ret;
     pcp_server_t *s;
     int sindx, sindx1, sindx2;

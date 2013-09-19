@@ -7,7 +7,7 @@
 int main()
 {
     struct sockaddr_in src, dst; int s; socklen_t src_len = sizeof(src);
-    pcp_flow_t f; char buff[1024]; memset(buff, 0, sizeof(buff));
+    pcp_flow_t* f; char buff[1024]; memset(buff, 0, sizeof(buff));
 
     dst.sin_family = AF_INET;
     dst.sin_port = htons(80);

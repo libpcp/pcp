@@ -91,7 +91,7 @@ typedef enum {
     PSS_COUNT
 } pcp_server_state_e;
 
-void pcp_flow_updated(pcp_flow_t f);
+void pcp_flow_updated(pcp_flow_t* f);
 
 typedef struct pcp_server pcp_server_t;
 

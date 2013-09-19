@@ -55,7 +55,7 @@ main(int argc, char **argv)
     struct sockaddr_in sa, sa2, sa3;
     int ret = 0;
     int cmp, p;
-    pcp_flow_t f;
+    pcp_flow_t* f;
     struct timeval t, t2, t3;
     struct flow_key_data kd;
     pcp_server_t* s;

@@ -73,7 +73,7 @@ extern "C" {
 #define PCP_SOCKET int
 #endif
 
-typedef struct pcp_flow* pcp_flow_t;
+typedef struct pcp_flow_s pcp_flow_t;
 typedef struct pcp_userid_option *pcp_userid_option_p;
 typedef struct pcp_deviceid_option *pcp_deviceid_option_p;
 typedef struct pcp_location_option *pcp_location_option_p;
@@ -156,23 +156,23 @@ void pcp_terminate(int close_flows);
  *  return
  *  pcp_flow_t   value used in other functions to reference this flow.
  */
-pcp_flow_t pcp_new_flow(
+pcp_flow_t* pcp_new_flow(
         struct sockaddr* src_addr,
         struct sockaddr* dst_addr,
         struct sockaddr* ext_addr,
         uint8_t protocol, uint32_t lifetime);
 
-void pcp_flow_set_lifetime(pcp_flow_t f, uint32_t lifetime);
+void pcp_flow_set_lifetime(pcp_flow_t* f, uint32_t lifetime);
 
 /*
  * Set 3rd party option to the existing message flow info
  */
-void pcp_set_3rd_party_opt (pcp_flow_t f, struct sockaddr* thirdp_addr);
+void pcp_set_3rd_party_opt (pcp_flow_t* f, struct sockaddr* thirdp_addr);
 
 /*
  * Set flow priority option to the existing flow
  */
-void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down);
+void pcp_flow_set_flowp(pcp_flow_t* f, uint8_t dscp_up, uint8_t dscp_down);
 
 /*
  * Append metadata option to the existing flow f
@@ -180,39 +180,39 @@ void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down);
  * if value is NULL then remove metadata with this id
  */
 void
-pcp_flow_add_md (pcp_flow_t f, uint32_t md_id, void *value, size_t val_len);
+pcp_flow_add_md (pcp_flow_t* f, uint32_t md_id, void *value, size_t val_len);
 
 
-int pcp_flow_set_userid(pcp_flow_t f, pcp_userid_option_p userid);
-int pcp_flow_set_deviceid(pcp_flow_t f, pcp_deviceid_option_p dev);
-int pcp_flow_set_location(pcp_flow_t f, pcp_location_option_p loc);
+int pcp_flow_set_userid(pcp_flow_t* f, pcp_userid_option_p userid);
+int pcp_flow_set_deviceid(pcp_flow_t* f, pcp_deviceid_option_p dev);
+int pcp_flow_set_location(pcp_flow_t* f, pcp_location_option_p loc);
 
 
 /*
  * Append filter option.
  */
-void pcp_flow_set_filter_opt(pcp_flow_t f, struct sockaddr *filter_ip,
+void pcp_flow_set_filter_opt(pcp_flow_t* f, struct sockaddr *filter_ip,
         uint8_t filter_prefix);
 
 /*
  * Append prefer failure option.
  */
-void pcp_flow_set_prefer_failure_opt (pcp_flow_t f);
+void pcp_flow_set_prefer_failure_opt (pcp_flow_t* f);
 
 // create new PCP message with SADSCP opcode. It's used to learn
 // correct DSCP values to get desired flow treatment by router.
-pcp_flow_t pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
+pcp_flow_t* pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
 uint8_t jitter_tol, char* app_name);
 
 /*
  * Remove flow from PCP server.
  */
-void pcp_close_flow(pcp_flow_t f);
+void pcp_close_flow(pcp_flow_t* f);
 
 /*
  * Frees memory pointed to by f; Invalidates f.
  */
-void pcp_delete_flow(pcp_flow_t f);
+void pcp_delete_flow(pcp_flow_t* f);
 
 typedef struct pcp_flow_info {
     pcp_fstate_e     result;
@@ -231,12 +231,12 @@ typedef struct pcp_flow_info {
 } pcp_flow_info_t;
 
 // Allocates info_buf by malloc, has to be freed by client when longer needed.
-pcp_flow_info_t *pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf,
+pcp_flow_info_t *pcp_flow_get_info(pcp_flow_t* f, pcp_flow_info_t **info_buf,
         size_t *info_count);
 
 //callback function type - called when flow state has changed
 typedef void (*pcp_flow_change_notify)
-        (pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
+        (pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
                 pcp_fstate_e, void* cb_arg);
 
 //set flow state change notify callback function
@@ -249,7 +249,7 @@ void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun, void* cb_arg);
 //   return value - count of interfaces in exit_state (nonzero value means
 //                  there is some result from PCP server)
 
-int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate);
+int pcp_eval_flow_state(pcp_flow_t* flow, pcp_fstate_e *fstate);
 
 ////////////////////////////////////////////////////////////////////////////////
 //                      Event handling functions
@@ -310,7 +310,7 @@ void pcp_set_read_fdset(int *fd_max, fd_set *read_fd_set);
  *                              possible PCP servers. Instead return immediately
  *                              after first received result.
                                                                              */
-pcp_fstate_e pcp_wait(pcp_flow_t flow, int timeout, int exit_on_partial_res);
+pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res);
 
 // example of pcp_wait use:
 /*

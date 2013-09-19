@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage source_ip4;
     uint8_t protocol = 6;
     uint32_t lifetime = 10;
-    pcp_flow_t flow = NULL;
+    pcp_flow_t* flow = NULL;
 
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;

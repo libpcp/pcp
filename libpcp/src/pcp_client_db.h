@@ -59,7 +59,7 @@ typedef struct {
 } md_val_t;
 #endif
 
-struct pcp_flow {
+struct pcp_flow_s {
     // flow's data
     opt_flags_e         opt_flags;
     struct flow_key_data {
@@ -100,8 +100,8 @@ struct pcp_flow {
     uint32_t            recv_result;
 
     //control data
-    struct pcp_flow    *next; //next flow with same key bucket
-    struct pcp_flow    *next_child; //next flow for MAP with 0.0.0.0 src ip
+    struct pcp_flow_s    *next; //next flow with same key bucket
+    struct pcp_flow_s    *next_child; //next flow for MAP with 0.0.0.0 src ip
     uint32_t            pcp_server_indx;
     pcp_flow_state_e    state;
     uint32_t            resend_timeout;
@@ -163,34 +163,34 @@ struct pcp_server {
     time_t                      cepoch;
     struct pcp_nonce            nonce;
     uint32_t                    index;
-    pcp_flow_t                  ping_flow_msg;
-    pcp_flow_t                  restart_flow_msg;
+    pcp_flow_t*                  ping_flow_msg;
+    pcp_flow_t*                  restart_flow_msg;
     uint32_t                    ping_count;
     struct timeval              next_timeout;
     uint32_t                    natpmp_ext_addr;
     void*                       app_data;
 };
 
-typedef int(*pcp_db_flow_iterate)(pcp_flow_t f, void* data);
+typedef int(*pcp_db_flow_iterate)(pcp_flow_t* f, void* data);
 
 typedef int(*pcp_db_server_iterate)(pcp_server_t *f, void* data);
 
-pcp_flow_t pcp_create_flow(pcp_server_t* s, struct flow_key_data *fkd);
+pcp_flow_t* pcp_create_flow(pcp_server_t* s, struct flow_key_data *fkd);
 
-pcp_errno pcp_free_flow(pcp_flow_t f);
+pcp_errno pcp_free_flow(pcp_flow_t* f);
 
-pcp_flow_t pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx);
+pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx);
 
-pcp_errno pcp_db_add_flow(pcp_flow_t f);
+pcp_errno pcp_db_add_flow(pcp_flow_t* f);
 
-pcp_errno pcp_db_rem_flow(pcp_flow_t f);
+pcp_errno pcp_db_rem_flow(pcp_flow_t* f);
 
 pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data);
 
-void pcp_flow_clear_msg_buf(pcp_flow_t f);
+void pcp_flow_clear_msg_buf(pcp_flow_t* f);
 
 #ifdef PCP_EXPERIMENTAL
-void pcp_db_add_md(pcp_flow_t f, uint16_t md_id, void* val, size_t val_len);
+void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len);
 #endif
 
 int pcp_new_server(struct in6_addr *ip, uint16_t port);
@@ -206,7 +206,7 @@ pcp_server_t * get_pcp_server_by_fd(PCP_SOCKET fd);
 
 void pcp_db_free_pcp_servers(void);
 
-pcp_errno pcp_delete_flow_intern(pcp_flow_t f);
+pcp_errno pcp_delete_flow_intern(pcp_flow_t* f);
 
 
 #ifdef __cplusplus

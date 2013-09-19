@@ -48,7 +48,7 @@
 
 
 
-static void * add_filter_option(pcp_flow_t f, void* cur)
+static void * add_filter_option(pcp_flow_t* f, void* cur)
 {
     pcp_filter_option_t *filter_op = (pcp_filter_option_t*) cur;
     filter_op->option = PCP_OPTION_FILTER;
@@ -78,7 +78,7 @@ static void * add_prefer_failure_option(void* cur)
 }
 
 #ifdef PCP_EXPERIMENTAL
-static void * add_userid_option(pcp_flow_t f, void* cur)
+static void * add_userid_option(pcp_flow_t* f, void* cur)
 {
     pcp_userid_option_t *userid_op = (pcp_userid_option_t *) cur;
     userid_op->option = PCP_OPTION_USERID;
@@ -90,7 +90,7 @@ static void * add_userid_option(pcp_flow_t f, void* cur)
     return cur;
 }
 
-static void * add_location_option(pcp_flow_t f, void* cur)
+static void * add_location_option(pcp_flow_t* f, void* cur)
 {
     pcp_location_option_t *location_op = (pcp_location_option_t *) cur;
     location_op->option = PCP_OPTION_LOCATION;
@@ -102,7 +102,7 @@ static void * add_location_option(pcp_flow_t f, void* cur)
     return cur;
 }
 
-static void * add_deviceid_option(pcp_flow_t f, void* cur)
+static void * add_deviceid_option(pcp_flow_t* f, void* cur)
 {
     pcp_deviceid_option_t *deviceid_op = (pcp_deviceid_option_t *) cur;
     deviceid_op->option = PCP_OPTION_DEVICEID;
@@ -118,7 +118,7 @@ static void * add_deviceid_option(pcp_flow_t f, void* cur)
 #endif
 
 #ifdef PCP_FLOW_PRIORITY
-static void * add_flowp_option(pcp_flow_t f, void* cur)
+static void * add_flowp_option(pcp_flow_t* f, void* cur)
 {
     pcp_flow_priority_option_t* flowp_op = (pcp_flow_priority_option_t*)cur;
     flowp_op->option = PCP_OPTION_FLOW_PRIORITY;
@@ -134,7 +134,7 @@ static void * add_flowp_option(pcp_flow_t f, void* cur)
 
 #ifdef PCP_EXPERIMENTAL
 static inline pcp_metadata_option_t *
-add_md_option(pcp_flow_t f, pcp_metadata_option_t *md_opt, md_val_t* md)
+add_md_option(pcp_flow_t* f, pcp_metadata_option_t *md_opt, md_val_t* md)
 {
     size_t len_md = md->val_len;
     uint32_t padding = (4 - (len_md % 4)) % 4;
@@ -153,7 +153,7 @@ add_md_option(pcp_flow_t f, pcp_metadata_option_t *md_opt, md_val_t* md)
     return (pcp_metadata_option_t *)(((uint8_t*)(md_opt+1)) + len_md + padding);
 }
 
-static void * add_md_options(pcp_flow_t f, void* cur)
+static void * add_md_options(pcp_flow_t* f, void* cur)
 {
     uint32_t i;
     md_val_t * md = f->md_vals;
@@ -169,7 +169,7 @@ static void * add_md_options(pcp_flow_t f, void* cur)
 }
 #endif
 
-static pcp_errno build_pcp_options(pcp_flow_t flow, void* cur)
+static pcp_errno build_pcp_options(pcp_flow_t* flow, void* cur)
 {
 #ifdef PCP_FLOW_PRIORITY
     if (flow->flowp_option_present) {
@@ -207,7 +207,7 @@ static pcp_errno build_pcp_options(pcp_flow_t flow, void* cur)
     return PCP_ERR_SUCCESS;
 }
 
-static pcp_errno build_pcp_peer(pcp_server_t * server, pcp_flow_t flow,
+static pcp_errno build_pcp_peer(pcp_server_t * server, pcp_flow_t* flow,
         void* peer_loc)
 {
     void* next=NULL;
@@ -241,7 +241,7 @@ static pcp_errno build_pcp_peer(pcp_server_t * server, pcp_flow_t flow,
     return build_pcp_options(flow, next);
 }
 
-static pcp_errno build_pcp_map(pcp_server_t * server, pcp_flow_t flow,
+static pcp_errno build_pcp_map(pcp_server_t * server, pcp_flow_t* flow,
         void* map_loc)
 {
     void* next=NULL;
@@ -271,7 +271,7 @@ static pcp_errno build_pcp_map(pcp_server_t * server, pcp_flow_t flow,
 }
 
 #ifdef PCP_SADSCP
-static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
+static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t* flow,
         void* sadscp_loc)
 {
     void* next=NULL;
@@ -307,7 +307,7 @@ static pcp_errno build_pcp_sadscp(pcp_server_t * server, pcp_flow_t flow,
 #endif
 
 #ifndef PCP_DISABLE_NATPMP
-static pcp_errno build_natpmp_msg(pcp_flow_t flow)
+static pcp_errno build_natpmp_msg(pcp_flow_t* flow)
 {
     if (flow->kd.operation == PCP_OPCODE_ANNOUNCE) {
         nat_pmp_announce_req_t *ann_msg =
@@ -342,7 +342,7 @@ static pcp_errno build_natpmp_msg(pcp_flow_t flow)
 }
 #endif
 
-void* build_pcp_msg(pcp_flow_t flow)
+void* build_pcp_msg(pcp_flow_t* flow)
 {
     ssize_t ret=-1;
     pcp_server_t * pcp_server=NULL;

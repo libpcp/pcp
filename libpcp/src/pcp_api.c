@@ -127,10 +127,10 @@ void pcp_set_read_fdset(int *fd_max, fd_set *read_fd_set)
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
 }
 
-int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate)
+int pcp_eval_flow_state(pcp_flow_t* flow, pcp_fstate_e *fstate)
 {
     int nexit_states = 0;
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     int nall = 0;
     int nsuccess = 0;
     int nfailed = 0;
@@ -179,7 +179,7 @@ int pcp_eval_flow_state(pcp_flow_t flow, pcp_fstate_e *fstate)
     return nexit_states;
 }
 
-pcp_fstate_e pcp_wait(pcp_flow_t flow, int timeout, int exit_on_partial_res)
+pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
 {
     fd_set read_fds;
     int fdmax;
@@ -303,7 +303,7 @@ static inline void fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
 }
 
 static inline void
-init_flow(pcp_flow_t f, pcp_server_t* s, int lifetime,
+init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
         struct sockaddr* ext_addr)
 {
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
@@ -350,8 +350,8 @@ init_flow(pcp_flow_t f, pcp_server_t* s, int lifetime,
 
 struct caasi_data {
     struct flow_key_data *kd;
-    pcp_flow_t  fprev;
-    pcp_flow_t  ffirst;
+    pcp_flow_t*  fprev;
+    pcp_flow_t*  ffirst;
     uint32_t    lifetime;
     struct sockaddr* ext_addr;
     struct in6_addr* src_ip;
@@ -373,7 +373,7 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
     if ((IN6_IS_ADDR_UNSPECIFIED(d->src_ip)) ||
             (IN6_ARE_ADDR_EQUAL(d->src_ip, (struct in6_addr *) s->src_ip))) {
 
-        pcp_flow_t f = NULL;
+        pcp_flow_t* f = NULL;
 
         memcpy(&d->kd->src_ip, s->src_ip, sizeof(d->kd->src_ip));
         memcpy(&d->kd->pcp_server_ip, s->pcp_ip, sizeof(d->kd->pcp_server_ip));
@@ -406,7 +406,7 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
     return 0;
 }
 
-pcp_flow_t pcp_new_flow(
+pcp_flow_t* pcp_new_flow(
         struct sockaddr* src_addr,
         struct sockaddr* dst_addr,
         struct sockaddr* ext_addr,
@@ -506,9 +506,9 @@ pcp_flow_t pcp_new_flow(
     return data.ffirst;
 }
 
-void pcp_flow_set_lifetime(pcp_flow_t f, uint32_t lifetime)
+void pcp_flow_set_lifetime(pcp_flow_t* f, uint32_t lifetime)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         fiter->lifetime = lifetime;
 
@@ -516,16 +516,16 @@ void pcp_flow_set_lifetime(pcp_flow_t f, uint32_t lifetime)
     }
 }
 
-void pcp_set_3rd_party_opt (UNUSED pcp_flow_t f,
+void pcp_set_3rd_party_opt (UNUSED pcp_flow_t* f,
                             UNUSED struct sockaddr* thirdp_addr)
 {
 
 }
 
-void pcp_flow_set_filter_opt(pcp_flow_t f, struct sockaddr *filter_ip,
+void pcp_flow_set_filter_opt(pcp_flow_t* f, struct sockaddr *filter_ip,
                              uint8_t filter_prefix)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter != NULL; fiter = fiter->next_child){
         if (!fiter->filter_option_present){
             fiter->filter_option_present = 1;
@@ -536,9 +536,9 @@ void pcp_flow_set_filter_opt(pcp_flow_t f, struct sockaddr *filter_ip,
     }
 }
 
-void pcp_flow_set_prefer_failure_opt (pcp_flow_t f)
+void pcp_flow_set_prefer_failure_opt (pcp_flow_t* f)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter != NULL; fiter = fiter->next_child){
         if (!fiter->pfailure_option_present) {
             fiter->pfailure_option_present = 1;
@@ -547,9 +547,9 @@ void pcp_flow_set_prefer_failure_opt (pcp_flow_t f)
     }
 }
 #ifdef PCP_EXPERIMENTAL
-int pcp_flow_set_userid(pcp_flow_t f, pcp_userid_option_p user)
+int pcp_flow_set_userid(pcp_flow_t* f, pcp_userid_option_p user)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter != NULL; fiter = fiter->next_child) {
         memcpy(&(fiter->f_userid.userid[0]), &(user->userid[0]), MAX_USER_ID);
         pcp_flow_updated(fiter);
@@ -558,9 +558,9 @@ int pcp_flow_set_userid(pcp_flow_t f, pcp_userid_option_p user)
 }
 
 
-int pcp_flow_set_location(pcp_flow_t f, pcp_location_option_p loc)
+int pcp_flow_set_location(pcp_flow_t* f, pcp_location_option_p loc)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter != NULL; fiter = fiter->next_child) {
         memcpy(&(fiter->f_location.location[0]), &(loc->location[0]), MAX_GEO_STR);
         pcp_flow_updated(fiter);
@@ -569,9 +569,9 @@ int pcp_flow_set_location(pcp_flow_t f, pcp_location_option_p loc)
     return 0;
 }
 
-int pcp_flow_set_deviceid(pcp_flow_t f, pcp_deviceid_option_p dev)
+int pcp_flow_set_deviceid(pcp_flow_t* f, pcp_deviceid_option_p dev)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter != NULL; fiter = fiter->next_child) {
         memcpy(&(fiter->f_deviceid.deviceid[0]), &(dev->deviceid[0]), MAX_DEVICE_ID);
         pcp_flow_updated(fiter);
@@ -580,9 +580,9 @@ int pcp_flow_set_deviceid(pcp_flow_t f, pcp_deviceid_option_p dev)
 }
 
 void
-pcp_flow_add_md (pcp_flow_t f, uint32_t md_id, void *value, size_t val_len)
+pcp_flow_add_md (pcp_flow_t* f, uint32_t md_id, void *value, size_t val_len)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         pcp_db_add_md(fiter, md_id, value, val_len);
         pcp_flow_updated(fiter);
@@ -591,9 +591,9 @@ pcp_flow_add_md (pcp_flow_t f, uint32_t md_id, void *value, size_t val_len)
 #endif
 
 #ifdef PCP_FLOW_PRIORITY
-void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down)
+void pcp_flow_set_flowp(pcp_flow_t* f, uint8_t dscp_up, uint8_t dscp_down)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         uint8_t fpresent = (dscp_up!=0)||(dscp_down!=0);
         if (fiter->flowp_option_present != fpresent) {
@@ -608,7 +608,7 @@ void pcp_flow_set_flowp(pcp_flow_t f, uint8_t dscp_up, uint8_t dscp_down)
 }
 #endif
 
-static inline void pcp_close_flow_intern(pcp_flow_t f)
+static inline void pcp_close_flow_intern(pcp_flow_t* f)
 {
     if ((f->state!= pfs_wait_for_server_init) &&
             (f->state!= pfs_idle) &&
@@ -621,18 +621,18 @@ static inline void pcp_close_flow_intern(pcp_flow_t f)
     }
 }
 
-void pcp_close_flow(pcp_flow_t f)
+void pcp_close_flow(pcp_flow_t* f)
 {
-    pcp_flow_t fiter;
+    pcp_flow_t* fiter;
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         pcp_close_flow_intern(fiter);
     }
     pcp_pulse(NULL);
 }
 
-void pcp_delete_flow(pcp_flow_t f)
+void pcp_delete_flow(pcp_flow_t* f)
 {
-    pcp_flow_t fiter = f, fnext = NULL;
+    pcp_flow_t *fiter = f, *fnext = NULL;
     while (fiter != NULL) {
         fnext = fiter->next;
         pcp_delete_flow_intern(fiter);
@@ -640,7 +640,7 @@ void pcp_delete_flow(pcp_flow_t f)
     }
 }
 
-static int delete_flow_iter(pcp_flow_t f, void * data)
+static int delete_flow_iter(pcp_flow_t* f, void * data)
 {
     if (*(int*)data) {
         pcp_close_flow_intern(f);
@@ -659,9 +659,9 @@ void pcp_terminate(int close_flows)
 }
 
 pcp_flow_info_t*
-pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf, size_t *info_count)
+pcp_flow_get_info(pcp_flow_t* f, pcp_flow_info_t **info_buf, size_t *info_count)
 {
-    pcp_flow_t fiter = f;
+    pcp_flow_t* fiter = f;
     uint32_t   n = 0;
 
     if ((!info_buf)||(!info_count)) {
@@ -717,7 +717,7 @@ pcp_flow_get_info(pcp_flow_t f, pcp_flow_info_t **info_buf, size_t *info_count)
 }
 
 #ifdef PCP_SADSCP
-pcp_flow_t pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
+pcp_flow_t* pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
 uint8_t jitter_tol, char* app_name)
 {
     struct flow_key_data kd;

@@ -22,7 +22,7 @@
 
 int main()
 {
-    pcp_flow_t f1, f2;
+    pcp_flow_t *f1, *f2;
 
     pcp_log_level = PCP_DEBUG_NONE;
 
@@ -42,7 +42,7 @@ int main()
 #ifdef PCP_SADSCP
     //TEST learn DSCP
     {
-        pcp_flow_t l1;
+        pcp_flow_t* l1;
         TEST((l1=pcp_learn_dscp(1,1,1,NULL))==NULL); //NO PCP server to send req
 
         TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==0);

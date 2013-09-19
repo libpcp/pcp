@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     pcp_server_t *s;
     uint8_t protocol = 6;
     uint32_t lifetime = 10;
-    pcp_flow_t flow = NULL;
+    pcp_flow_t* flow = NULL;
     pcp_flow_info_t * flow_info = NULL;
     size_t flow_count;
 

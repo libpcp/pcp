@@ -27,10 +27,10 @@
 #include "unp.h"
 #include "test_macro.h"
 
-pcp_flow_t flow_to_wait=NULL;
+pcp_flow_t* flow_to_wait=NULL;
 uint32_t notified = 0;
 
-void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
+void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
         pcp_fstate_e s, void* cb_arg)
 {
     if ((f==flow_to_wait)&&(s==pcp_state_succeeded)) {
@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage ext2_ip4;
     uint8_t protocol2 = 17;
     uint32_t lifetime2 = 15;
-    pcp_flow_t flow1 = NULL;
-    pcp_flow_t flow2 = NULL;
+    pcp_flow_t* flow1 = NULL;
+    pcp_flow_t* flow2 = NULL;
 
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
                         protocol2, lifetime2);
 
     if (flow1->key_bucket > flow2->key_bucket) { //LCOV_EXCL_START
-        pcp_flow_t tmp = flow1;
+        pcp_flow_t* tmp = flow1;
         flow1=flow2; flow2=tmp;
     }  //LCOV_EXCL_STOP
 

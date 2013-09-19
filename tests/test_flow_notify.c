@@ -36,9 +36,9 @@
 
 uint8_t status;
 
-pcp_flow_t flow = NULL;
+pcp_flow_t* flow = NULL;
 
-void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
+void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
         pcp_fstate_e s, void* cb_arg)
 {
     TEST(1==(status = ((f==flow) && (src_addr->sa_family == AF_INET))));
@@ -56,7 +56,7 @@ void notify_cb_1(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_a
     TEST(cb_arg==NULL);
 }
 
-void notify_cb_2(pcp_flow_t f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
+void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
         pcp_fstate_e s, void* cb_arg)
 {
     status = 0;

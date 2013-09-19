@@ -100,15 +100,15 @@ void test_pcp_server_functions()
         TEST(pcp_db_foreach_server(ret_1_func, NULL)==0);
 }
 
-int ret_func(pcp_flow_t f, void*data)
+int ret_func(pcp_flow_t* f, void*data)
 {
-    *(pcp_flow_t*)data=f;
+    *(pcp_flow_t**)data=f;
     return 1;
 }
 
 void test_pcp_flow_funcs()
 {
-    pcp_flow_t f1, f2, f3;
+    pcp_flow_t *f1, *f2, *f3;
     uint32_t bucket, cnt;
     struct flow_key_data fkd;
     struct flow_key_data fkd2;
