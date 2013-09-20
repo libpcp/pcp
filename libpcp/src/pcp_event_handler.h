@@ -45,7 +45,7 @@ typedef enum {
     pcpe_any,
     pcpe_timeout,
     pcpe_io_event,
-    pcpe_terminate,
+    pcpe_terminate
 } pcp_event_e;
 
 typedef enum {

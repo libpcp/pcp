@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
     uint8_t protocol = 6;
     uint32_t lifetime = 10;
     pcp_flow_t* flow = NULL;
+    pcp_ctx_t *ctx;
 
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
@@ -49,32 +50,35 @@ int main(int argc, char *argv[]) {
     printf("####   *****************************     ####\n");
     printf("#############################################\n");
 
+    ctx = pcp_init(0);
+
     sock_pton(":1111", (struct sockaddr*) &source_ip4);
 
-    s=get_pcp_server(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2));
+    s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2));
 
-    flow = pcp_new_flow((struct sockaddr*)&source_ip4,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         NULL,
                         NULL,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
-    pcp_handle_select(0,NULL,NULL); //send packet
+    pcp_pulse(ctx, NULL); //send packet
     TEST(s->server_state == pss_wait_ping_resp);
     s->server_state = pss_not_working;
     sleep(1);
     TEST( pcp_wait(flow, 7000, 0) == pcp_state_succeeded);
 
     TEST(s->server_state == pss_wait_io);
-    pcp_terminate(1);
+    pcp_terminate(ctx, 1);
 
-    s=get_pcp_server(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2));
+    ctx = pcp_init(0);
+    s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2));
 
-    flow = pcp_new_flow((struct sockaddr*)&source_ip4,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         NULL,
                         NULL,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
-    pcp_handle_select(0,NULL,NULL); //send packet
+    pcp_pulse(ctx, NULL); //send packet
     TEST(s->server_state == pss_wait_ping_resp);
 
     pcp_db_rem_flow(flow);
@@ -86,31 +90,33 @@ int main(int argc, char *argv[]) {
 
     printf("Server state %d\n", s->server_state);
     TEST(s->server_state == pss_wait_io);
-    pcp_terminate(1);
+    pcp_terminate(ctx, 1);
 
-    s=get_pcp_server(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2));
+    ctx = pcp_init(0);
+    s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2));
 
-    flow = pcp_new_flow((struct sockaddr*)&source_ip4,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         NULL,
                         NULL,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
-    TEST(pcp_wait(flow, 20000, 0) == pcp_state_failed);
+    TEST(pcp_wait(flow, 43000, 0) == pcp_state_failed);
 
     TEST(s->next_timeout.tv_sec>=time(NULL)+PCP_SERVER_DISCOVERY_RETRY_DELAY-2);
     s->next_timeout.tv_sec = (long)time(NULL)+1;
     sleep(2);
-    pcp_handle_select(0,NULL,NULL);
-    TEST(pcp_wait(flow, 20000, 0) == pcp_state_failed);
+    pcp_pulse(ctx, NULL);
+    TEST(pcp_wait(flow, 43000, 0) == pcp_state_failed);
     TEST(s->server_state == pss_not_working);
 
-    pcp_terminate(1);
+    pcp_terminate(ctx, 1);
 
-    s=get_pcp_server(pcp_add_server(Sock_pton("1.1.1.1:5351"), 2));
-    flow = pcp_new_flow((struct sockaddr*)&source_ip4,
+    ctx = pcp_init(0);
+    s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("1.1.1.1:5351"), 2));
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         NULL,
                         NULL,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
     TEST(pcp_wait(flow, 40000, 0) == pcp_state_failed);
     TEST(s->server_state==pss_not_working);
 
@@ -118,35 +124,34 @@ int main(int argc, char *argv[]) {
     s->pcp_version++;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     s->server_state=pss_ping;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     s->server_state=pss_ping;
     pcp_flow_updated(flow);
     s->ping_flow_msg = NULL;
-    s->pcp_server_socket = PCP_INVALID_SOCKET;
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     s->server_state=pss_wait_io;
     flow->state = pfs_wait_for_lifetime_renew;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(flow->state==pfs_failed);
 
     s->server_state=pss_wait_io;
     flow->state = pfs_wait_resp;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(flow->state==pfs_failed);
 
     s->server_state = pss_wait_ping_resp;
@@ -154,7 +159,7 @@ int main(int argc, char *argv[]) {
     s->ping_flow_msg = NULL;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     s->server_state = pss_version_negotiation;
@@ -163,7 +168,7 @@ int main(int argc, char *argv[]) {
     s->ping_flow_msg = NULL;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_wait_ping_resp);
     TEST(s->pcp_version == PCP_MAX_SUPPORTED_VERSION);
 
@@ -173,7 +178,7 @@ int main(int argc, char *argv[]) {
     s->pcp_version = 0;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     s->pcp_version = PCP_MAX_SUPPORTED_VERSION;
@@ -182,14 +187,14 @@ int main(int argc, char *argv[]) {
     s->ping_flow_msg = NULL;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_wait_ping_resp);
 
     s->server_state=pss_wait_ping_resp;
     s->ping_count = PCP_MAX_PING_COUNT-1;
     pcp_flow_updated(flow);
     sleep(1);
-    pcp_handle_select(0,NULL,NULL);
+    pcp_pulse(ctx, NULL);
     TEST(s->server_state==pss_not_working);
 
     PD_SOCKET_CLEANUP();

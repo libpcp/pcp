@@ -352,6 +352,7 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
     ssize_t ret;
     size_t to_send_count;
     unsigned long iMode = 1;
+    pcp_ctx_t *ctx = s->ctx;
 
     OSDEP(iMode);
 
@@ -372,12 +373,19 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
     while (to_send_count != 0) {
         ret = flow->pcp_msg_len - to_send_count;
 #ifdef WIN32
-        ioctlsocket(s->pcp_server_socket, FIONBIO, &iMode);
-        ret = send(s->pcp_server_socket, flow->pcp_msg_buffer + ret,
-            flow->pcp_msg_len - ret, 0);
+        ioctlsocket(ctx->socket, FIONBIO, &iMode);
+        ret = sendto(ctx->socket, flow->pcp_msg_buffer + ret,
+                flow->pcp_msg_len - ret, 0, s->pcp_server_saddr,
+                s->af==AF_INET?
+                        sizeof(struct sockaddr_in):
+                        sizeof(struct sockaddr_in6));
 #else
-        ret = send(s->pcp_server_socket, flow->pcp_msg_buffer + ret,
-                flow->pcp_msg_len - ret, MSG_DONTWAIT);
+        ret = sendto(ctx->socket, flow->pcp_msg_buffer + ret,
+                flow->pcp_msg_len - ret, MSG_DONTWAIT,
+                (struct sockaddr*)&s->pcp_server_saddr,
+                s->af==AF_INET?
+                        sizeof(struct sockaddr_in):
+                        sizeof(struct sockaddr_in6));
 #endif //WIN32
         if (ret == PCP_SOCKET_ERROR) { //LCOV_EXCL_START
 #ifdef WIN32
@@ -435,6 +443,10 @@ static pcp_errno read_msg_from_socket(PCP_SOCKET socket, pcp_recv_msg_t *msg)
             sizeof(msg->pcp_msg_buffer), MSG_DONTWAIT,
             (struct sockaddr*) &msg->rcvd_from_addr, &src_len)) == PCP_SOCKET_ERROR) {
 #endif //WIN32
+        if ((errno==EAGAIN)||(errno==EWOULDBLOCK)) {
+            msg->pcp_msg_len = 0;
+            return PCP_ERR_WOULDBLOCK;
+        }
         char err_buf[ERR_BUF_LEN];
 
         pcp_strerror(errno, err_buf, sizeof(err_buf));
@@ -455,7 +467,7 @@ static pcp_errno read_msg_from_socket(PCP_SOCKET socket, pcp_recv_msg_t *msg)
 
 static pcp_flow_event_e fhndl_send(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
-    pcp_server_t*s = get_pcp_server(f->pcp_server_indx);
+    pcp_server_t*s = get_pcp_server(f->ctx, f->pcp_server_indx);
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 
     if (!s) {                       //LCOV_EXCL_START
@@ -483,7 +495,7 @@ static pcp_flow_event_e fhndl_send(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 
 static pcp_flow_event_e fhndl_resend(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
-    pcp_server_t* s = get_pcp_server(f->pcp_server_indx);
+    pcp_server_t* s = get_pcp_server(f->ctx, f->pcp_server_indx);
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 
     if (!s) {                       //LCOV_EXCL_START
@@ -492,7 +504,7 @@ static pcp_flow_event_e fhndl_resend(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
     }                               //LCOV_EXCL_STOP
 
 #if PCP_RETX_MRC>0
-    if (++f->retry_count > PCP_RETX_MRC) {
+    if (++f->retry_count >= PCP_RETX_MRC) {
         return fev_failed;
     }
 #endif
@@ -574,7 +586,7 @@ fhndl_received_success(pcp_flow_t* f, pcp_recv_msg_t* msg)
 static pcp_flow_event_e
 fhndl_send_renew(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 {
-    pcp_server_t* s = get_pcp_server(f->pcp_server_indx);
+    pcp_server_t* s = get_pcp_server(f->ctx, f->pcp_server_indx);
     long timeout_add;
 
     if (!s) {                       //LCOV_EXCL_START
@@ -727,10 +739,10 @@ static pcp_flow_t* server_process_rcvd_pcp_msg(pcp_server_t *s, pcp_recv_msg_t* 
             S6_ADDR32(&msg->assigned_ext_ip)[1] = 0;
             S6_ADDR32(&msg->assigned_ext_ip)[0] = 0;
 
-            f = pcp_get_flow(&msg->kd, s->index);
+            f = pcp_get_flow(&msg->kd, s);
         }
     } else {
-        f = pcp_get_flow(&msg->kd, s->index);
+        f = pcp_get_flow(&msg->kd, s);
     }
 #else
     f = pcp_get_flow(&msg->kd, s->index);
@@ -849,7 +861,7 @@ static inline pcp_flow_t* get_ping_msg(pcp_server_t *s)
     find_data.s = s;
     find_data.msg = NULL;
 
-    pcp_db_foreach_flow(get_first_flow_iter, &find_data);
+    pcp_db_foreach_flow(s->ctx, get_first_flow_iter, &find_data);
 
     s->ping_flow_msg = find_data.msg;
 
@@ -883,14 +895,6 @@ static pcp_server_state_e handle_server_ping(pcp_server_t *s)
     pcp_flow_t* msg;
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     s->ping_count = 0;
-    if (s->pcp_server_socket == PCP_INVALID_SOCKET) {
-        if (psd_create_pcp_server_socket(s->index) != PCP_ERR_SUCCESS) {
-
-            gettimeofday(&s->next_timeout, NULL);
-
-            return pss_set_not_working;
-        }
-    }
 
     msg = get_ping_msg(s);
 
@@ -1013,7 +1017,7 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
 static pcp_server_state_e handle_send_all_msgs(pcp_server_t* s)
 {
     struct flow_iterator_data d = {s, fev_server_initialized};
-    pcp_db_foreach_flow(flow_send_event_iter, &d);
+    pcp_db_foreach_flow(s->ctx, flow_send_event_iter, &d);
 
     gettimeofday(&s->next_timeout, NULL);
     return pss_wait_io_calc_nearest_timeout;
@@ -1022,7 +1026,7 @@ static pcp_server_state_e handle_send_all_msgs(pcp_server_t* s)
 static pcp_server_state_e handle_server_restart(pcp_server_t* s)
 {
     struct flow_iterator_data d = {s, fev_server_restarted};
-    pcp_db_foreach_flow(flow_send_event_iter, &d);
+    pcp_db_foreach_flow(s->ctx, flow_send_event_iter, &d);
     s->restart_flow_msg = NULL;
 
     gettimeofday(&s->next_timeout, NULL);
@@ -1031,43 +1035,20 @@ static pcp_server_state_e handle_server_restart(pcp_server_t* s)
 
 static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s)
 {
-    pcp_recv_msg_t msg;
+    pcp_recv_msg_t *msg = &s->ctx->msg;
     pcp_flow_t* f;
-
-    if (read_msg_from_socket(s->pcp_server_socket, &msg) != PCP_ERR_SUCCESS) {
-        gettimeofday(&s->next_timeout, NULL);
-        return pss_set_not_working;
-    }
-
-    if (!validate_pcp_msg(&msg)) {
-        PCP_LOGGER(PCP_DEBUG_PERR, "%s","Invalid PCP msg");
-        return pss_wait_io;
-    }
-
-    if ((parse_response(&msg)) != PCP_ERR_SUCCESS) {
-        PCP_LOGGER(PCP_DEBUG_PERR, "%s", "Cannot parse PCP msg");
-        return pss_wait_io;
-    }
-
-    memcpy(&msg.kd.src_ip, s->src_ip, sizeof(struct in6_addr));
-    memcpy(&msg.kd.pcp_server_ip, s->pcp_ip, sizeof(struct in6_addr));
-    if (msg.recv_version<2) {
-        memcpy(&msg.kd.nonce, &s->nonce, sizeof(struct pcp_nonce));
-    }
-
-    msg.received_time = time(NULL);
-    msg.pcp_server_indx = s->index;
 
     PCP_LOGGER(PCP_DEBUG_INFO,
         "Received PCP packet from server at %s, size %d, result_code %d, epoch %d",
-        s->pcp_server_paddr, msg.pcp_msg_len, msg.recv_result, msg.recv_epoch);
+        s->pcp_server_paddr, msg->pcp_msg_len, msg->recv_result,
+        msg->recv_epoch);
 
-    switch (msg.recv_result) {
+    switch (msg->recv_result) {
     case PCP_RES_UNSUPP_VERSION:
         PCP_LOGGER(PCP_DEBUG_DEBUG, "PCP server %s returned "
                 "result_code=Unsupported version", s->pcp_server_paddr);
         gettimeofday(&s->next_timeout, NULL);
-        s->next_version = msg.recv_version;
+        s->next_version = msg->recv_version;
         return pss_version_negotiation;
     case PCP_RES_ADDRESS_MISMATCH:
         PCP_LOGGER(PCP_DEBUG_WARN, "There is PCP-unaware NAT present "
@@ -1077,11 +1058,11 @@ static pcp_server_state_e handle_wait_io_receive_msg(pcp_server_t* s)
         return pss_set_not_working;
     }
 
-    f = server_process_rcvd_pcp_msg(s, &msg);
+    f = server_process_rcvd_pcp_msg(s, msg);
 
-    if (compare_epochs(&msg, s)) {
-        s->epoch = msg.recv_epoch;
-        s->cepoch = msg.received_time;
+    if (compare_epochs(msg, s)) {
+        s->epoch = msg->recv_epoch;
+        s->cepoch = msg->received_time;
         gettimeofday(&s->next_timeout, NULL);
         s->restart_flow_msg = f;
 
@@ -1098,7 +1079,7 @@ static pcp_server_state_e handle_wait_io_timeout(pcp_server_t *s)
     s->next_timeout.tv_sec = 0;
     s->next_timeout.tv_usec = 0;
 
-    pcp_db_foreach_flow(check_flow_timeout, &s->next_timeout);
+    pcp_db_foreach_flow(s->ctx, check_flow_timeout, &s->next_timeout);
 
     if ((s->next_timeout.tv_sec != 0) || (s->next_timeout.tv_usec != 0)) {
         gettimeofday(&ctv, NULL);
@@ -1118,7 +1099,7 @@ static pcp_server_state_e handle_server_set_not_working(pcp_server_t *s)
             "Disabling sending of PCP messages to this server for %d minutes.",
             s->pcp_server_paddr, PCP_SERVER_DISCOVERY_RETRY_DELAY / 60);
 
-    pcp_db_foreach_flow(flow_send_event_iter, &d);
+    pcp_db_foreach_flow(s->ctx, flow_send_event_iter, &d);
 
     gettimeofday(&s->next_timeout, NULL);
     s->next_timeout.tv_sec += PCP_SERVER_DISCOVERY_RETRY_DELAY;
@@ -1131,49 +1112,25 @@ static pcp_server_state_e handle_server_not_working(pcp_server_t *s)
     struct timeval ctv;
     gettimeofday(&ctv, NULL);
     if (timeval_comp(&ctv,&s->next_timeout)<0) {
-        pcp_recv_msg_t msg;
+        pcp_recv_msg_t *msg = &s->ctx->msg;
         pcp_flow_t* f;
-        if (read_msg_from_socket(s->pcp_server_socket, &msg) !=
-            PCP_ERR_SUCCESS) {
-            gettimeofday(&s->next_timeout, NULL);
-            return pss_set_not_working;
-        }
-
-        if (!validate_pcp_msg(&msg)) {
-            PCP_LOGGER(PCP_DEBUG_PERR, "%s", "Invalid PCP msg");
-            return pss_not_working;
-        }
-
-        if ((parse_response(&msg)) != PCP_ERR_SUCCESS) {
-            PCP_LOGGER(PCP_DEBUG_PERR, "%s", "Cannot parse PCP msg");
-            return pss_not_working;
-        }
-
-        memcpy(&msg.kd.src_ip, s->src_ip, sizeof(struct in6_addr));
-        memcpy(&msg.kd.pcp_server_ip, s->pcp_ip,
-                sizeof(struct in6_addr));
-        if (msg.recv_version<2) {
-            memcpy(&msg.kd.nonce, &s->nonce, sizeof(struct pcp_nonce));
-        }
-
-        msg.received_time = time(NULL);
-        msg.pcp_server_indx = s->index;
 
         PCP_LOGGER(PCP_DEBUG_INFO,
             "Received PCP packet from server at %s, size %d, result_code %d, epoch %d",
-            s->pcp_server_paddr, msg.pcp_msg_len, msg.recv_result, msg.recv_epoch);
+            s->pcp_server_paddr, msg->pcp_msg_len, msg->recv_result,
+            msg->recv_epoch);
 
-        switch (msg.recv_result) {
+        switch (msg->recv_result) {
         case PCP_RES_UNSUPP_VERSION:
             return pss_not_working;
         case PCP_RES_ADDRESS_MISMATCH:
             return pss_not_working;
         }
 
-        f = server_process_rcvd_pcp_msg(s, &msg);
+        f = server_process_rcvd_pcp_msg(s, msg);
 
-        s->epoch = msg.recv_epoch;
-        s->cepoch = msg.received_time;
+        s->epoch = msg->recv_epoch;
+        s->cepoch = msg->received_time;
         gettimeofday(&s->next_timeout, NULL);
         s->restart_flow_msg = f;
 
@@ -1188,9 +1145,7 @@ static pcp_server_state_e handle_server_reping(pcp_server_t *s)
 {
     PCP_LOGGER(PCP_DEBUG_INFO, "Trying to ping PCP server %s again. ",
             s->pcp_server_paddr);
-    CLOSE(s->pcp_server_socket);
     s->pcp_version = PCP_MAX_SUPPORTED_VERSION;
-    psd_create_pcp_server_socket(s->index);
 
     gettimeofday(&s->next_timeout, NULL);
     return pss_ping;
@@ -1198,11 +1153,6 @@ static pcp_server_state_e handle_server_reping(pcp_server_t *s)
 
 static pcp_server_state_e pcp_terminate_server(pcp_server_t* s)
 {
-    if (s->pcp_server_socket != PCP_INVALID_SOCKET ) {
-        CLOSE(s->pcp_server_socket);
-        pcp_fd_change_notify(s, 0);
-    }
-    s->pcp_server_socket = PCP_INVALID_SOCKET;
     s->next_timeout.tv_sec = 0;
     s->next_timeout.tv_usec = 0;
 
@@ -1305,15 +1255,16 @@ pcp_errno run_server_state_machine(pcp_server_t * s, pcp_event_e event)
     return PCP_ERR_SUCCESS;
 }
 
-struct pcp_hevent_data {
-    fd_set *read_fd_set;
-    int fd_max;
-    struct timeval *select_timeout;
+
+struct hserver_iter_data {
+    struct timeval *res_timeout;
+    pcp_event_e ev;
 };
 
-static int handle_event_server(pcp_server_t* s, void* data)
+static int hserver_iter(pcp_server_t* s, void* data)
 {
-    struct pcp_hevent_data *params = (struct pcp_hevent_data*) data;
+    pcp_event_e ev = ((struct hserver_iter_data*)data)->ev;
+    struct timeval *res_timeout=((struct hserver_iter_data*)data)->res_timeout;
     struct timeval ctv;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
@@ -1322,12 +1273,8 @@ static int handle_event_server(pcp_server_t* s, void* data)
         return 0;
     }
 
-    if ((s->pcp_server_socket!=PCP_INVALID_SOCKET) &&
-        (s->pcp_server_socket < (PCP_SOCKET)params->fd_max)
-            && (FD_ISSET(s->pcp_server_socket, params->read_fd_set))) {
-        FD_CLR(s->pcp_server_socket, params->read_fd_set);
-        run_server_state_machine(s, pcpe_io_event);
-    }
+    if (ev!=pcpe_timeout)
+        run_server_state_machine(s, ev);
 
     while(1) {
         gettimeofday(&ctv, NULL);
@@ -1338,21 +1285,21 @@ static int handle_event_server(pcp_server_t* s, void* data)
         run_server_state_machine(s, pcpe_timeout);
     }
 
-    if ((!params->select_timeout)
+    if ((!res_timeout)
             || ((s->next_timeout.tv_sec == 0)
                     && (s->next_timeout.tv_usec == 0))) {
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return 0;
     }
 
-    if ((params->select_timeout->tv_sec == 0)
-            && (params->select_timeout->tv_usec == 0)) {
+    if ((res_timeout->tv_sec == 0)
+            && (res_timeout->tv_usec == 0)) {
 
-        *params->select_timeout = ctv;
+        *res_timeout = ctv;
 
-    } else if (timeval_comp(&ctv, params->select_timeout) < 0) {
+    } else if (timeval_comp(&ctv, res_timeout) < 0) {
 
-        *params->select_timeout = ctv;
+        *res_timeout = ctv;
     }
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
@@ -1363,54 +1310,70 @@ static int handle_event_server(pcp_server_t* s, void* data)
 //                       Exported functions
 
 
-void pcp_handle_select(int fd_max, fd_set *read_fd_set,
-        struct timeval *select_timeout)
+int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
 {
-    struct timeval t_help;
-    fd_set fd_help;
-    struct pcp_hevent_data params =
-            { read_fd_set, fd_max, select_timeout };
-    PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
-    if (!params.select_timeout) {
-        params.select_timeout = &t_help;
-    }
-    if (!read_fd_set) {
-        struct timeval tv = {0, 0};
-        FD_ZERO(&fd_help);
-        params.read_fd_set = &fd_help;
-        pcp_set_read_fdset(&params.fd_max, params.read_fd_set);
-        select(params.fd_max, params.read_fd_set, NULL, NULL, &tv);
-    }
-    pcp_db_foreach_server(handle_event_server, &params);
-    PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-}
+    pcp_recv_msg_t *msg;
+    pcp_errno ret;
+    struct timeval tmp_timeout;
 
-int
-pcp_handle_fd_event(PCP_SOCKET fd, int timed_out, struct timeval *next_timeout)
-{
-    pcp_server_t* s = get_pcp_server_by_fd(fd);
-
-    if (!s) {
+    if (!ctx) {
         return PCP_ERR_BAD_ARGS;
-    } else {
-        fd_set fds_t;
-        struct timeval t_help;
-        struct pcp_hevent_data data = { &fds_t, fd+1, next_timeout };
-
-        if (!data.select_timeout) {
-            data.select_timeout = &t_help;
-            t_help.tv_sec = 0;
-            t_help.tv_usec = 0;
-        }
-
-        FD_ZERO(&fds_t);
-        if (!timed_out) {
-            FD_SET(fd, &fds_t);
-        }
-
-        handle_event_server(s, &data);
-        return (data.select_timeout->tv_sec*1000)+(data.select_timeout->tv_usec/1000);
     }
+
+    msg=&ctx->msg;
+
+    if (!next_timeout) {
+        next_timeout = &tmp_timeout;
+    }
+
+    memset(msg, 1, sizeof(*msg));
+    ret = read_msg_from_socket(ctx->socket, msg);
+
+    if (ret==PCP_ERR_SUCCESS) {
+        struct in6_addr ip6;
+        pcp_server_t* s;
+
+        msg->received_time = time(NULL);
+
+        if (!validate_pcp_msg(msg)) {
+            PCP_LOGGER(PCP_DEBUG_PERR, "%s","Invalid PCP msg");
+            goto process_timeouts;
+        }
+
+        if ((parse_response(msg)) != PCP_ERR_SUCCESS) {
+            PCP_LOGGER(PCP_DEBUG_PERR, "%s", "Cannot parse PCP msg");
+            goto process_timeouts;
+        }
+
+        pcp_fill_in6_addr(&ip6, NULL, (struct sockaddr*)&msg->rcvd_from_addr);
+        s = get_pcp_server_by_ip(ctx, &ip6);
+        msg->pcp_server_indx = s->index;
+
+        memcpy(&msg->kd.src_ip, s->src_ip, sizeof(struct in6_addr));
+        memcpy(&msg->kd.pcp_server_ip, s->pcp_ip, sizeof(struct in6_addr));
+        if (msg->recv_version<2) {
+            memcpy(&msg->kd.nonce, &s->nonce, sizeof(struct pcp_nonce));
+        }
+
+        {
+            struct hserver_iter_data param = {NULL, pcpe_io_event};
+            hserver_iter(s, &param);
+        }
+    } else if (ret!=PCP_ERR_WOULDBLOCK) {
+       struct hserver_iter_data param = {NULL, pcpe_terminate};
+       pcp_db_foreach_server(ctx, hserver_iter, &param);
+       goto end;
+    }
+
+process_timeouts:
+    {
+        struct hserver_iter_data param = {next_timeout, pcpe_timeout};
+        pcp_db_foreach_server(ctx, hserver_iter, &param);
+    }
+
+end:
+    PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+    return (next_timeout->tv_sec*1000)+(next_timeout->tv_usec/1000);
 }
 
 void pcp_flow_updated(pcp_flow_t* f)
@@ -1418,8 +1381,11 @@ void pcp_flow_updated(pcp_flow_t* f)
     struct timeval curtime;
     pcp_server_t*s;
 
+    if (!f)
+        return;
+
     gettimeofday(&curtime, NULL);
-    s=get_pcp_server(f->pcp_server_indx);
+    s=get_pcp_server(f->ctx, f->pcp_server_indx);
     if (s) {
         s->next_timeout = curtime;
     }
@@ -1432,70 +1398,36 @@ void pcp_flow_updated(pcp_flow_t* f)
     }
 }
 
-pcp_flow_change_notify pcp_flow_change_cb_fun=NULL;
-void* pcp_flow_change_cb_arg = NULL;
-
-void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun, void* cb_arg)
+void pcp_set_flow_change_cb(pcp_ctx_t* ctx, pcp_flow_change_notify cb_fun,
+        void* cb_arg)
 {
-    pcp_flow_change_cb_fun = cb_fun;
-    pcp_flow_change_cb_arg = cb_arg;
-}
-
-static void
-fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, in_port_t sport)
-{
-    if (IN6_IS_ADDR_V4MAPPED(sip)) {
-        struct sockaddr_in *s = (struct sockaddr_in *)dst;
-        s->sin_family = AF_INET;
-        s->sin_addr.s_addr = S6_ADDR32(sip)[3];
-        s->sin_port = sport;
-    } else {
-        struct sockaddr_in6 *s = (struct sockaddr_in6 *)dst;
-        s->sin6_family = AF_INET6;
-        s->sin6_addr = *sip;
-        s->sin6_port = sport;
-    }
+    ctx->flow_change_cb_fun = cb_fun;
+    ctx->flow_change_cb_arg = cb_arg;
 }
 
 static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state)
 {
     struct sockaddr_storage src_addr, ext_addr;
+    pcp_ctx_t *ctx= flow->ctx;
     PCP_LOGGER_DEBUG(
             "Flow's %d state changed to: %s",
             flow->key_bucket,
             dbg_get_fstate_name(state));
-    if (pcp_flow_change_cb_fun)
+    if (ctx->flow_change_cb_fun)
     {
-        fill_sockaddr((struct sockaddr*)&src_addr, &flow->kd.src_ip,
+        pcp_fill_sockaddr((struct sockaddr*)&src_addr, &flow->kd.src_ip,
                 flow->kd.map_peer.src_port);
         if (state == pcp_state_succeeded) {
-            fill_sockaddr((struct sockaddr*)&ext_addr, &flow->map_peer.ext_ip,
+            pcp_fill_sockaddr((struct sockaddr*)&ext_addr, &flow->map_peer.ext_ip,
                     flow->map_peer.ext_port);
         } else {
-            pcp_server_t *s = get_pcp_server(flow->pcp_server_indx);
+            pcp_server_t *s = get_pcp_server(ctx, flow->pcp_server_indx);
             memset(&ext_addr,0,sizeof(ext_addr));
             ext_addr.ss_family = s?s->af:AF_INET;
         }
-        pcp_flow_change_cb_fun(flow, (struct sockaddr*)&src_addr,
-                (struct sockaddr*)&ext_addr, state, pcp_flow_change_cb_arg);
-    }
-}
-
-static pcp_fd_change_cb_t pcp_fd_change_cb = NULL;
-static void *pcp_fd_change_cb_arg = NULL;
-
-int pcp_set_fd_change_cb(pcp_fd_change_cb_t cb, void* cb_arg)
-{
-    pcp_fd_change_cb = cb;
-    pcp_fd_change_cb_arg = cb_arg;
-
-    return 0;
-}
-
-void pcp_fd_change_notify(pcp_server_t *s, int added)
-{
-    if ((pcp_fd_change_cb)&&(s)) {
-        pcp_fd_change_cb(s->pcp_server_socket, added, pcp_fd_change_cb_arg,
-                &s->app_data);
+        ctx->flow_change_cb_fun(
+                flow, (struct sockaddr*)&src_addr,
+                (struct sockaddr*)&ext_addr, state,
+                ctx->flow_change_cb_arg);
     }
 }

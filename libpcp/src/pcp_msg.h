@@ -43,29 +43,6 @@
 
 void* build_pcp_msg(struct pcp_flow_s* flow);
 
-typedef struct pcp_recv_msg {
-    opt_flags_e         opt_flags;
-    struct flow_key_data kd;
-    uint32_t key_bucket;
-
-    //response data
-    struct in6_addr     assigned_ext_ip;
-    in_port_t           assigned_ext_port;
-    uint8_t             recv_dscp;
-    uint32_t            recv_version;
-    uint32_t            recv_epoch;
-    uint32_t            recv_lifetime;
-    uint32_t            recv_result;
-    time_t              received_time;
-
-    //control data
-    uint32_t            pcp_server_indx;
-    struct sockaddr_storage rcvd_from_addr;
-    //msg buffer
-    uint32_t            pcp_msg_len;
-    char                pcp_msg_buffer[PCP_MAX_LEN];
-} pcp_recv_msg_t;
-
 int validate_pcp_msg(pcp_recv_msg_t* f);
 
 void parse_response_hdr(pcp_recv_msg_t f);

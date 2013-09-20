@@ -107,7 +107,8 @@ typedef enum {
     PCP_ERR_UNKNOWN = -9,
     PCP_ERR_SHORT_LIFETIME_ERR = -10,
     PCP_ERR_TIMEOUT = -11,
-    PCP_ERR_NOT_FOUND = -12
+    PCP_ERR_NOT_FOUND = -12,
+    PCP_ERR_WOULDBLOCK= -13
 } pcp_errno;
 
 typedef enum {
@@ -117,6 +118,8 @@ typedef enum {
     pcp_state_short_lifetime_error,
     pcp_state_failed
 } pcp_fstate_e;
+
+typedef struct pcp_ctx_s pcp_ctx_t;
 
 typedef void (*external_logger)(pcp_debug_mode_t , const char*);
 
@@ -131,16 +134,17 @@ extern pcp_debug_mode_t pcp_log_level;
 #define ENABLE_AUTODISCOVERY  1
 #define DISABLE_AUTODISCOVERY 0
 
-void pcp_init(uint8_t autodiscovery);
+pcp_ctx_t* pcp_init(uint8_t autodiscovery);
 
 //returns internal pcp server ID, -1 => error occurred
-int pcp_add_server(struct sockaddr* pcp_server, uint8_t pcp_version);
+int pcp_add_server(pcp_ctx_t* ctx, struct sockaddr* pcp_server,
+        uint8_t pcp_version);
 
 /*
  * Close socket fds and clean up all settings, frees all library buffers
  *      close_flows - signal end of flows to PCP servers
  */
-void pcp_terminate(int close_flows);
+void pcp_terminate(pcp_ctx_t* ctx, int close_flows);
 
 ////////////////////////////////////////////////////////////////////////////////
 //                          Flow API
@@ -154,15 +158,22 @@ void pcp_terminate(int close_flows);
  *  lifetime    time in seconds how long should mapping last
  *
  *  return
- *  pcp_flow_t   value used in other functions to reference this flow.
+ *  pcp_flow_t* value used in other functions to reference this flow.
  */
 pcp_flow_t* pcp_new_flow(
+        pcp_ctx_t * ctx,
         struct sockaddr* src_addr,
         struct sockaddr* dst_addr,
         struct sockaddr* ext_addr,
-        uint8_t protocol, uint32_t lifetime);
+        uint8_t protocol,
+        uint32_t lifetime,
+        void* userdata);
 
 void pcp_flow_set_lifetime(pcp_flow_t* f, uint32_t lifetime);
+
+void pcp_flow_set_user_data(pcp_flow_t* f, void* userdata);
+
+void* pcp_flow_get_user_data(pcp_flow_t* f);
 
 /*
  * Set 3rd party option to the existing message flow info
@@ -182,11 +193,11 @@ void pcp_flow_set_flowp(pcp_flow_t* f, uint8_t dscp_up, uint8_t dscp_down);
 void
 pcp_flow_add_md (pcp_flow_t* f, uint32_t md_id, void *value, size_t val_len);
 
-
+#ifdef PCP_EXPERIMENTAL
 int pcp_flow_set_userid(pcp_flow_t* f, pcp_userid_option_p userid);
 int pcp_flow_set_deviceid(pcp_flow_t* f, pcp_deviceid_option_p dev);
 int pcp_flow_set_location(pcp_flow_t* f, pcp_location_option_p loc);
-
+#endif
 
 /*
  * Append filter option.
@@ -199,10 +210,12 @@ void pcp_flow_set_filter_opt(pcp_flow_t* f, struct sockaddr *filter_ip,
  */
 void pcp_flow_set_prefer_failure_opt (pcp_flow_t* f);
 
+#ifdef PCP_SADSCP
 // create new PCP message with SADSCP opcode. It's used to learn
 // correct DSCP values to get desired flow treatment by router.
-pcp_flow_t* pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
+pcp_flow_t* pcp_learn_dscp(pcp_ctx_t* ctx, uint8_t delay_tol, uint8_t loss_tol,
 uint8_t jitter_tol, char* app_name);
+#endif
 
 /*
  * Remove flow from PCP server.
@@ -240,7 +253,8 @@ typedef void (*pcp_flow_change_notify)
                 pcp_fstate_e, void* cb_arg);
 
 //set flow state change notify callback function
-void pcp_set_flow_change_cb(pcp_flow_change_notify cb_fun, void* cb_arg);
+void pcp_set_flow_change_cb(pcp_ctx_t* ctx, pcp_flow_change_notify cb_fun,
+        void* cb_arg);
 
 // evaluate flow state
 // params:
@@ -257,47 +271,28 @@ int pcp_eval_flow_state(pcp_flow_t* flow, pcp_fstate_e *fstate);
 /*****************************************************************************/
 /* For use in select loop                                                    */
 
-// pcp_handle_select - handle socket and timeout events. It's intended to be
+// pcp_pulse - handle socket and timeout events. It's intended to be
 // used in select loop.
 // params:
-//   fd_max (in)       - the biggest FD to check in read_fd_set
-//   read_fd_set (in)  - fd_set with signaled FDs with data available to read.
-//                       mostly to be used with a set filled by select.
-//   select_timeout(in/out) - nearest time-out. if it is filles be nonzero
-//                            value it will return smaller one of provided and
-//                            inner calculated. to be used in select function
+//   next_timeout(in/out) - nearest time-out. if it is filled by nonzero
+//                          value it will return smaller one of provided and
+//                          inner calculated. to be used in select function
 
-void pcp_handle_select(int fd_max, fd_set *read_fd_set,
-        struct timeval *select_timeout);
+int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout);
 
-// pcp_set_read_fdset - fills in fd_max and read_fd_set with FDs of internally
-//                      used sockets.
-void pcp_set_read_fdset(int *fd_max, fd_set *read_fd_set);
-
-// example of use in select loop
+//example of pcp_pulse use:
 /*
-    fd_set read_fds;
-    int fdmax = 0;
-    struct timeval tout_select;
-    memset(&tout_select, 0, sizeof(tout_select));
+  pcp_ctx_t *ctx = pcp_init(1);
+  pcp_flow_t f = pcp_new_flow(ctx,...);
+  do {
+      pcp_pulse(ctx, NULL);
+      //do something else
+      sleep(1);
+  } while (1);
+*/
 
-    FD_ZERO(&read_fds);
 
-    // select loop
-    for (;;) {
-        int ret_count;
-        void* data;
-        pcp_fstate_e ret_state;
-
-        //process all events and get timeout value for next select
-        pcp_handle_select(fdmax, &read_fds, &tout_select);
-
-        FD_ZERO(&read_fds);
-        pcp_set_read_fdset(&fdmax, &read_fds);
-
-        ret_count = select(fdmax, &read_fds, NULL, NULL, &tout_select);
-    }
- */
+PCP_SOCKET pcp_get_socket(pcp_ctx_t * ctx);
 
 /*****************************************************************************/
 /* Blocking wait for flow reaching one of exit states or time-out(ms)
@@ -314,58 +309,14 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res);
 
 // example of pcp_wait use:
 /*
-    pcp_flow_t f = pcp_new_flow((struct sockaddr*)&src, (struct sockaddr*)&dst,
-                                NULL, IPPROTO_TCP, 60);
+    pcp_flow_t f = pcp_new_flow(ctx, (struct sockaddr*)&src,
+                    (struct sockaddr*)&dst, NULL, IPPROTO_TCP, 60, NULL);
     pcp_flow_set_flowp(f, 12, 16);
     pcp_wait(f, 500, 0);  // send PCP msg and wait for response for 500 ms
  */
 
 /*****************************************************************************/
 /* Functions to be used in apps with event handling (e.g. with libevent)     */
-
-// type of callback function. function will be called when new socket is created
-// or the already used one is closed.
-// params:
-//   fd (in)          - fd being added or removed
-//   added (in)       - added / removed
-//   cb_arg (in)      - user defined param - set during cb handler registering
-//   fd_data (in/out) - user data stored to this FD
-
-typedef void (*pcp_fd_change_cb_t)
-        (PCP_SOCKET fd, int added, void *cb_arg, void ** fd_data);
-
-// pcp_set_fd_change_cb - register callback function to be notified about FD
-// creation and deletion.
-
-int pcp_set_fd_change_cb(pcp_fd_change_cb_t cb, void* cb_arg);
-
-// pcp_handle_fd_event - handle event on one FD - data / time-out
-// params:
-//   fd (in)            - FD on which event occurred
-//   timed_out (in)     - 1 timed out, 0 data available to read
-//   mext_timeout (out) - func return next value of time-out on FD
-
-int pcp_handle_fd_event(PCP_SOCKET fd, int timed_out,
-                        struct timeval *next_timeout);
-
-
-/*****************************************************************************/
-/* pcp_pulse - non-blocking function - checks all sockets for any incoming
- * messages and for time-outs and triggers corresponding action
- * params:
- *    struct timeval * next_pulse (out) - value of nearest timeout           */
-
-#define pcp_pulse(next_pulse) pcp_handle_select(0, NULL, next_pulse)
-
-//example of pcp_pulse use:
-/*
-  pcp_flow_t f = pcp_new_flow(...);
-  do {
-      pcp_pulse(NULL);
-      //do something else
-      sleep(1);
-  } while (1);
-*/
 
 #ifdef __cplusplus
 }

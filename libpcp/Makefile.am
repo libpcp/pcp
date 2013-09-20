@@ -16,7 +16,8 @@ libpcp_client_la_SOURCES = src/pcp_logger.c\
                     src/pcp_msg_structs.h\
                     src/pcp_api.c\
                     src/net/findsaddr-udp.c \
-                    src/net/sock_ntop.c
+                    src/net/sock_ntop.c \
+                    src/net/pcp_socket.c
 
 noinst_HEADERS =    src/net/pcp_socket.h\
                     src/net/gateway.h\

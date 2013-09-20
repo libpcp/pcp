@@ -40,13 +40,6 @@
 #define EMPTY 0xFFFFFFFF
 #define PCP_INIT_SERVER_COUNT 5
 
-struct pcp_client_db {
-    size_t pcp_servers_length;
-    pcp_server_t *pcp_servers;
-    size_t flow_cnt;
-    pcp_flow_t* flows[FLOW_HASH_SIZE];
-} pcp_db = { 0, NULL, 0, {0} };
-
 static uint32_t compute_flow_key(struct flow_key_data *kd)
 {
     uint32_t h = 0;
@@ -68,7 +61,7 @@ pcp_flow_t* pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
     pcp_flow_t* flow;
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 
-    if (!fkd) {
+    if ((!fkd)||(!s)) {
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return NULL;
     }
@@ -86,6 +79,7 @@ pcp_flow_t* pcp_create_flow(pcp_server_t *s, struct flow_key_data *fkd)
     flow->pcp_server_indx = (s ? s->index : PCP_INV_SERVER);
     flow->kd = *fkd;
     flow->key_bucket = EMPTY;
+    flow->ctx = s->ctx;
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return flow;
@@ -129,7 +123,7 @@ pcp_errno pcp_delete_flow_intern(pcp_flow_t* f)
 #endif
 
     if ((f->pcp_server_indx!=PCP_INV_SERVER) &&
-            ((s=get_pcp_server(f->pcp_server_indx))!=NULL) &&
+            ((s=get_pcp_server(f->ctx, f->pcp_server_indx))!=NULL) &&
             (s->ping_flow_msg == f)) {
         s->ping_flow_msg = NULL;
     }
@@ -142,38 +136,44 @@ pcp_errno pcp_db_add_flow(pcp_flow_t* f)
 {
     uint32_t index;
     pcp_flow_t* *fdb;
+    pcp_ctx_t *ctx;
     if (!f) {
         return PCP_ERR_BAD_ARGS;
     }
 
+    ctx = f->ctx;
+
     f->key_bucket = index = compute_flow_key(&f->kd);
     PCP_LOGGER(PCP_DEBUG_DEBUG, "Adding flow %p, key_bucket %d",
             f, f->key_bucket);
-    for (fdb = pcp_db.flows + index; (*fdb) != NULL; fdb = &(*fdb)->next)
+    for (fdb = ctx->pcp_db.flows + index; (*fdb) != NULL; fdb = &(*fdb)->next)
         ;
     *fdb = f;
     f->next = NULL;
 
-    pcp_db.flow_cnt++;
+    ctx->pcp_db.flow_cnt++;
     PCP_LOGGER(PCP_DEBUG_DEBUG, "total Number of flows added %zu",
-        pcp_db.flow_cnt);
+            ctx->pcp_db.flow_cnt);
 
     return PCP_ERR_SUCCESS;
 }
 
-pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx)
+pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, pcp_server_t* s)
 {
     pcp_flow_t* *fdb;
     uint32_t bucket;
-    if (!fkd) {
+    int pcp_server_index;
+
+    if ((!fkd)||(!s)||(!s->ctx)) {
         return NULL;
     }
+    pcp_server_index = s->index;
 
     bucket = compute_flow_key(fkd);
     PCP_LOGGER(PCP_DEBUG_DEBUG, "Computed key_bucket %d",
             bucket);
-    for (fdb = &pcp_db.flows[bucket]; (*fdb) != NULL; fdb = &(*fdb)->next) {
-        if (((*fdb)->pcp_server_indx == pcp_server_indx) &&
+    for (fdb = &s->ctx->pcp_db.flows[bucket]; (*fdb) != NULL; fdb = &(*fdb)->next) {
+        if (((*fdb)->pcp_server_indx == pcp_server_index) &&
             (0 == memcmp(fkd, &(*fdb)->kd, sizeof(*fkd)))) {
             return *fdb;
         }
@@ -185,18 +185,20 @@ pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx)
 pcp_errno pcp_db_rem_flow(pcp_flow_t* f)
 {
     pcp_flow_t* *fdb = NULL;
-    if ((!f)||(f->key_bucket==EMPTY)) {
+    pcp_ctx_t* ctx;
+    if ((!f)||(f->key_bucket==EMPTY)||(!f->ctx)) {
         return PCP_ERR_BAD_ARGS;
     }
+    ctx = f->ctx;
     PCP_LOGGER(PCP_DEBUG_DEBUG, "Removing flow %p, key_bucket %d",
             f, f->key_bucket);
 
-    for (fdb = pcp_db.flows + f->key_bucket; (*fdb) != NULL;
+    for (fdb = ctx->pcp_db.flows + f->key_bucket; (*fdb) != NULL;
          fdb = &((*fdb)->next)) {
         if (*fdb == f) {
             (*fdb)->key_bucket = EMPTY;
             (*fdb) = (*fdb)->next;
-            pcp_db.flow_cnt--;
+            ctx->pcp_db.flow_cnt--;
             return PCP_ERR_SUCCESS;
         }
     }
@@ -204,17 +206,17 @@ pcp_errno pcp_db_rem_flow(pcp_flow_t* f)
     return PCP_ERR_NOT_FOUND;
 }
 
-pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data)
+pcp_errno pcp_db_foreach_flow(pcp_ctx_t* ctx, pcp_db_flow_iterate f, void* data)
 {
     pcp_flow_t *fdb, *fdb_next = NULL;
     uint32_t index;
 
-    if (!f) {
+    if ((!f)||(!ctx)) {
         return PCP_ERR_BAD_ARGS;
     }
 
     for (index = 0; index < FLOW_HASH_SIZE; ++index) {
-        fdb = pcp_db.flows[index];
+        fdb = ctx->pcp_db.flows[index];
         while (fdb!=NULL) {
             fdb_next = (fdb->next);
             if ((*f)(fdb, data)) {
@@ -268,21 +270,21 @@ void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len)
 }
 #endif
 
-int pcp_new_server(struct in6_addr *ip, uint16_t port)
+int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
 {
     uint32_t i;
     pcp_server_t *ret = NULL;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
-    if (pcp_db.pcp_servers == NULL) {
-        pcp_db.pcp_servers = (pcp_server_t *) calloc(PCP_INIT_SERVER_COUNT,
-                sizeof(*pcp_db.pcp_servers));
+    if (ctx->pcp_db.pcp_servers == NULL) {
+        ctx->pcp_db.pcp_servers = (pcp_server_t *) calloc(PCP_INIT_SERVER_COUNT,
+                sizeof(*ctx->pcp_db.pcp_servers));
 
-        pcp_db.pcp_servers_length = PCP_INIT_SERVER_COUNT;
+        ctx->pcp_db.pcp_servers_length = PCP_INIT_SERVER_COUNT;
     }
 
-    for (i = 0; i < pcp_db.pcp_servers_length; ++i) {
-        pcp_server_t *s = pcp_db.pcp_servers + i;
+    for (i = 0; i < ctx->pcp_db.pcp_servers_length; ++i) {
+        pcp_server_t *s = ctx->pcp_db.pcp_servers + i;
         if (s->server_state == pss_unitialized) {
             ret = s;
             break;
@@ -290,9 +292,9 @@ int pcp_new_server(struct in6_addr *ip, uint16_t port)
     }
 
     if (ret == NULL) {
-        ret = (pcp_server_t *) realloc(pcp_db.pcp_servers,
-                sizeof(pcp_db.pcp_servers[0])
-                        * (pcp_db.pcp_servers_length + 1));
+        ret = (pcp_server_t *) realloc(ctx->pcp_db.pcp_servers,
+                sizeof(ctx->pcp_db.pcp_servers[0])
+                        * (ctx->pcp_db.pcp_servers_length + 1));
         if (!ret) {   //LCOV_EXCL_START
             char buff[ERR_BUF_LEN];
 
@@ -302,63 +304,53 @@ int pcp_new_server(struct in6_addr *ip, uint16_t port)
             PCP_LOGGER_END(PCP_DEBUG_DEBUG);
             return PCP_ERR_NO_MEM;
         }  //LCOV_EXCL_STOP
-        pcp_db.pcp_servers = ret;
-        ret = pcp_db.pcp_servers + pcp_db.pcp_servers_length;
+        ctx->pcp_db.pcp_servers = ret;
+        ret = ctx->pcp_db.pcp_servers + ctx->pcp_db.pcp_servers_length;
         memset(ret, 0, sizeof(*ret));
-        pcp_db.pcp_servers_length++;
+        ctx->pcp_db.pcp_servers_length++;
     }
 
     ret->epoch = ~0;
     ret->af = IN6_IS_ADDR_V4MAPPED(ip) ? AF_INET: AF_INET6;
     IPV6_ADDR_COPY((struct in6_addr*)ret->pcp_ip, ip);
     ret->pcp_port = port;
-
+    ret->ctx = ctx;
     ret->server_state = pss_allocated;
     ret->pcp_version = PCP_MAX_SUPPORTED_VERSION;
     createNonce(&ret->nonce);
-    ret->index = ret - pcp_db.pcp_servers;
+    ret->index = ret - ctx->pcp_db.pcp_servers;
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-    return ret - pcp_db.pcp_servers;
+    return ret->index;
 }
 
-pcp_server_t * get_pcp_server(int pcp_server_index)
+pcp_server_t * get_pcp_server(pcp_ctx_t* ctx, int pcp_server_index)
 {
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
+    if(!ctx) {
+        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+        return NULL;
+    }
     if ((pcp_server_index < 0)
-            || ((unsigned)pcp_server_index >= pcp_db.pcp_servers_length)) {
+            || ((unsigned)pcp_server_index >= ctx->pcp_db.pcp_servers_length)) {
         PCP_LOGGER(PCP_DEBUG_WARN,
                 "server index(%d) out of bounds(%zu)", pcp_server_index,
-                pcp_db.pcp_servers_length);
+                ctx->pcp_db.pcp_servers_length);
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return NULL;
     }
 
-    if (pcp_db.pcp_servers[pcp_server_index].server_state == pss_unitialized) {
+    if (ctx->pcp_db.pcp_servers[pcp_server_index].server_state ==
+            pss_unitialized) {
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return NULL;
     }
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-    return pcp_db.pcp_servers + pcp_server_index;
+    return ctx->pcp_db.pcp_servers + pcp_server_index;
 }
 
-pcp_server_t * get_pcp_server_by_fd(PCP_SOCKET fd)
-{
-    uint32_t i;
-
-    for (i = 0; i < pcp_db.pcp_servers_length; ++i) {
-        pcp_server_t *s = pcp_db.pcp_servers + i;
-        if ((s->server_state != pss_unitialized)
-                && ((int)s->pcp_server_socket == fd)) {
-
-            return s;
-        }
-    }
-    return NULL;
-}
-
-pcp_errno pcp_db_foreach_server(pcp_db_server_iterate f, void* data)
+pcp_errno pcp_db_foreach_server(pcp_ctx_t *ctx, pcp_db_server_iterate f, void* data)
 {
     uint32_t indx;
     int ret = PCP_ERR_MAX_SIZE;
@@ -370,11 +362,11 @@ pcp_errno pcp_db_foreach_server(pcp_db_server_iterate f, void* data)
         return PCP_ERR_BAD_ARGS;
     }
 
-    for (indx = 0; indx < pcp_db.pcp_servers_length; ++indx) {
-        if ((pcp_db.pcp_servers[indx].server_state == pss_unitialized)) {
+    for (indx = 0; indx < ctx->pcp_db.pcp_servers_length; ++indx) {
+        if ((ctx->pcp_db.pcp_servers[indx].server_state == pss_unitialized)) {
             continue;
         }
-        if ((*f)(pcp_db.pcp_servers + indx, data)) {
+        if ((*f)(ctx->pcp_db.pcp_servers + indx, data)) {
             ret = PCP_ERR_SUCCESS;
             break;
         }
@@ -400,30 +392,30 @@ static int find_ip(pcp_server_t* s, void* data)
 }
 
 pcp_server_t *
-get_pcp_server_by_ip(struct in6_addr *ip)
+get_pcp_server_by_ip(pcp_ctx_t *ctx, struct in6_addr *ip)
 {
     find_data_t fdata;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     fdata.found_server = NULL;
     fdata.ip = ip;
-    pcp_db_foreach_server(find_ip, &fdata);
+    pcp_db_foreach_server(ctx, find_ip, &fdata);
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return fdata.found_server;
 }
 
-void pcp_db_free_pcp_servers()
+void pcp_db_free_pcp_servers(pcp_ctx_t *ctx)
 {
     uint32_t i;
-    for (i=0; i<pcp_db.pcp_servers_length; ++i) {
-        pcp_server_t *s = pcp_db.pcp_servers + i;
+    for (i=0; i<ctx->pcp_db.pcp_servers_length; ++i) {
+        pcp_server_t *s = ctx->pcp_db.pcp_servers + i;
         pcp_server_state_e state = s->server_state;
         if ((state != pss_unitialized) && (state != pss_allocated)) {
             run_server_state_machine(s, pcpe_terminate);
         }
     }
-    free(pcp_db.pcp_servers);
-    pcp_db.pcp_servers = NULL;
-    pcp_db.pcp_servers_length = 0;
+    free(ctx->pcp_db.pcp_servers);
+    ctx->pcp_db.pcp_servers = NULL;
+    ctx->pcp_db.pcp_servers_length = 0;
 }

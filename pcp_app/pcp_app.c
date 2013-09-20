@@ -400,6 +400,13 @@ struct pcp_params {
     pcp_app_location_t app_location;
 
     uint8_t has_mappeer_data;
+    pcp_ctx_t *ctx;
+
+    struct pcp_server_list {
+        char *server;
+        struct pcp_server_list *next;
+        int version;
+    } *pcp_servers;
 };
 
 void parse_params(struct pcp_params *p, int argc, char *argv[]);
@@ -413,6 +420,7 @@ int main(int argc, char *argv[])
     struct sockaddr_storage filter_ip;
     int ret_val = 1;
     pcp_flow_t* flow = NULL;
+    struct pcp_server_list *server;
 
     PD_SOCKET_STARTUP();
 
@@ -458,17 +466,25 @@ int main(int argc, char *argv[])
     }
 
     if (!p.dis_auto_discovery) {
-        pcp_init(ENABLE_AUTODISCOVERY);
+        p.ctx = pcp_init(ENABLE_AUTODISCOVERY);
     } else {
-        pcp_init(DISABLE_AUTODISCOVERY);
+        p.ctx = pcp_init(DISABLE_AUTODISCOVERY);
     }
 
+    for (server = p.pcp_servers; server!=NULL; server=server->next) {
+        struct sockaddr *sa;
+
+        sa=Sock_pton(server->server);
+        if (sa) {
+            pcp_add_server(p.ctx, sa, server->version);
+        }
+    }
 
     if (p.has_mappeer_data) {
-        flow = pcp_new_flow((struct sockaddr*)&source_ip,
+        flow = pcp_new_flow(p.ctx, (struct sockaddr*)&source_ip,
                 (struct sockaddr*)&destination_ip,
                 (struct sockaddr*)&ext_ip,
-                p.opt_protocol, p.opt_lifetime);
+                p.opt_protocol, p.opt_lifetime, p.ctx);
 
         if (flow == NULL) {
             fprintf(stderr, "%s:%d Could not create flow \n", __FUNCTION__, __LINE__);
@@ -544,7 +560,7 @@ int main(int argc, char *argv[])
         print_get_dscp(flow);
     }
     printf("\n");
-    pcp_terminate(0);
+    pcp_terminate(p.ctx, 0);
 
     PD_SOCKET_CLEANUP();
     return ret_val;
@@ -563,12 +579,11 @@ void static inline parse_opt_fast_ret(struct pcp_params *p)
 
 void static inline parse_opt_server(struct pcp_params *p)
 {
-    struct sockaddr *sa;
-
-    sa=Sock_pton(optarg);
-    if (sa) {
-        pcp_add_server(sa, p->pcp_version);
-    }
+     struct pcp_server_list* l = p->pcp_servers;
+     p->pcp_servers = malloc(sizeof(*l));
+     p->pcp_servers->server = optarg;
+     p->pcp_servers->next = l;
+     p->pcp_servers->version = p->pcp_version;
 }
 
 void static inline parse_opt_version(struct pcp_params *p)

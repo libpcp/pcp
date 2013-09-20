@@ -24,29 +24,14 @@ int gettimeofday (struct timeval *__restrict __tv,
 void fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
         struct sockaddr* src);
 
-void pcp_get_event_loop_timeout(struct timeval *select_timeout)
+void pcp_get_event_loop_timeout(pcp_ctx_t *ctx, struct timeval *select_timeout)
 {
-    pcp_server_t* s;
-    fd_set read_fd_set;
-
-    FD_ZERO(&read_fd_set);
-    s = get_pcp_server(0);
+    pcp_server_t *s;
+    s = get_pcp_server(ctx, 0);
     s->server_state = pss_wait_io_calc_nearest_timeout;
     gettimeofday(&s->next_timeout, NULL);
 
-    pcp_handle_fd_event(s->pcp_server_socket, 1, select_timeout);
-}
-
-int fd_changed;
-int fd_changed_added;
-void* fd_changed_arg;
-
-
-void FD_changed(int fd, int added, void *cb_arg, void** app_data)
-{
-    fd_changed = fd;
-    fd_changed_added = added;
-    fd_changed_arg = cb_arg;
+    pcp_pulse(ctx, select_timeout);
 }
 
 int
@@ -59,11 +44,12 @@ main(int argc, char **argv)
     struct timeval t, t2, t3;
     struct flow_key_data kd;
     pcp_server_t* s;
-    int last_pcp_server_socket;
+    pcp_ctx_t *ctx;
 
     PD_SOCKET_STARTUP();
 
     pcp_log_level = PCP_DEBUG_WARN;
+    ctx = pcp_init(0);
 
     sa.sin_family = AF_INET;
     inet_pton (AF_INET, "100.2.1.1", &sa.sin_addr);
@@ -126,19 +112,12 @@ main(int argc, char **argv)
                 __FILE__,__LINE__);
     }//LCOV_EXCL_STOP
 
-    pcp_set_fd_change_cb(FD_changed, (void*)1234);
-    fd_changed = PCP_INVALID_SOCKET;
-
-    p = psd_add_pcp_server((struct sockaddr*)&sa, PCP_MAX_SUPPORTED_VERSION);
-    s = get_pcp_server(p);
-    TEST(fd_changed == (int)s->pcp_server_socket);
-    last_pcp_server_socket = (int)s->pcp_server_socket;
-    TEST(fd_changed_added == 1);
-    TEST(fd_changed_arg == (void*)1234);
+    p = psd_add_pcp_server(ctx, (struct sockaddr*)&sa, PCP_MAX_SUPPORTED_VERSION);
+    s = get_pcp_server(ctx, p);
 
     memset(&kd, 0, sizeof(kd));
-    fill_in6_addr(&kd.src_ip, &kd.map_peer.src_port, (struct sockaddr*)&sa3);
-    fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port,
+    pcp_fill_in6_addr(&kd.src_ip, &kd.map_peer.src_port, (struct sockaddr*)&sa3);
+    pcp_fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port,
             (struct sockaddr*)&sa);
     kd.map_peer.protocol = IPPROTO_TCP;
 
@@ -154,7 +133,7 @@ main(int argc, char **argv)
     f->timeout=t2;
     t3.tv_sec = 2; t3.tv_usec = 5000;
     f->state = pfs_wait_resp;
-    pcp_get_event_loop_timeout(&t3);
+    pcp_get_event_loop_timeout(ctx, &t3);
     if ((t3.tv_sec != 1) || ((t3.tv_usec+500)/1000 != 10)) {   //LCOV_EXCL_START
         printf("File: %s:%d: Test 3 failed: t.tv_sec = %d, t.tv_usec = %d\n",
                 __FILE__,__LINE__, (int)t3.tv_sec, (int)t3.tv_usec);
@@ -167,11 +146,11 @@ main(int argc, char **argv)
     //test 4
 
     memset(&kd, 0, sizeof(kd));
-    fill_in6_addr(&kd.src_ip, &kd.map_peer.src_port, (struct sockaddr*)&sa2);
-    fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port, (struct sockaddr*)&sa);
+    pcp_fill_in6_addr(&kd.src_ip, &kd.map_peer.src_port, (struct sockaddr*)&sa2);
+    pcp_fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port, (struct sockaddr*)&sa);
     kd.map_peer.protocol = IPPROTO_TCP;
 
-    f = pcp_create_flow(get_pcp_server(p), &kd);
+    f = pcp_create_flow(get_pcp_server(ctx, p), &kd);
     f->lifetime = 3600;
     pcp_db_add_flow(f);
     t2=t;
@@ -181,7 +160,7 @@ main(int argc, char **argv)
     t3 = t;
     t3.tv_sec = 2; t3.tv_usec = 5000;
     f->state = pfs_wait_resp;
-    pcp_get_event_loop_timeout(&t3);
+    pcp_get_event_loop_timeout(ctx, &t3);
     if ((t3.tv_sec != 1) || ((t3.tv_usec+500)/1000 != 10)) { //LCOV_EXCL_START
         printf("File: %s:%d: Test 4 failed: t.tv_sec = %d, t.tv_usec = %d\n",
                 __FILE__,__LINE__, (int)t3.tv_sec, (int)t3.tv_usec);
@@ -194,7 +173,7 @@ main(int argc, char **argv)
     //test 5
     t3.tv_sec = 1; t3.tv_usec = 15000;
     f->state = pfs_wait_resp;
-    pcp_get_event_loop_timeout(&t3);
+    pcp_get_event_loop_timeout(ctx, &t3);
     if ((t3.tv_sec != 1) || ((t3.tv_usec+500)/1000 != 10)) { //LCOV_EXCL_START
         printf("File: %s:%d: Test 5 failed: t.tv_sec = %d, t.tv_usec = %d\n",
                 __FILE__,__LINE__, (int)t3.tv_sec, (int)t3.tv_usec);
@@ -207,7 +186,7 @@ main(int argc, char **argv)
     //test 6
     t3.tv_sec = 0; t3.tv_usec = 25000;
     f->state = pfs_wait_resp;
-    pcp_get_event_loop_timeout(&t3);
+    pcp_get_event_loop_timeout(ctx, &t3);
     if ((t3.tv_sec != 0) || ((t3.tv_usec+500)/1000 != 25)) { //LCOV_EXCL_START
         printf("File: %s:%d: Test 6 failed: t.tv_sec = %d, t.tv_usec = %d\n",
                 __FILE__,__LINE__, (int)t3.tv_sec, (int) t3.tv_usec);
@@ -268,11 +247,7 @@ main(int argc, char **argv)
         printf("%d\n",r);
     }*/
 
-    pcp_terminate(1);
-
-    TEST(fd_changed == last_pcp_server_socket);
-    TEST(fd_changed_added == 0);
-    TEST(fd_changed_arg == (void*)1234);
+    pcp_terminate(ctx, 1);
 
     PD_SOCKET_CLEANUP();
 

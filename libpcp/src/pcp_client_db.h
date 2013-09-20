@@ -45,13 +45,14 @@ typedef enum {
     optf_flowp     = 1 << 1,
 } opt_flags_e;
 
+#define PCP_INV_SERVER (~0u)
+
+#ifdef PCP_EXPERIMENTAL
+
 #ifndef MD_VAL_MAX_LEN
 #define MD_VAL_MAX_LEN 24
 #endif
 
-#define PCP_INV_SERVER (~0u)
-
-#ifdef PCP_EXPERIMENTAL
 typedef struct {
     uint16_t md_id;
     uint16_t val_len;
@@ -59,23 +60,65 @@ typedef struct {
 } md_val_t;
 #endif
 
+#define FLOW_HASH_BITS 8
+#define FLOW_HASH_SIZE (2<<FLOW_HASH_BITS)
+
+struct flow_key_data {
+    uint8_t             operation;
+    struct in6_addr     src_ip;
+    struct in6_addr     pcp_server_ip;
+    struct pcp_nonce    nonce;
+    union {
+        struct mp_keydata {
+            uint8_t             protocol;
+            in_port_t           src_port;
+            struct in6_addr     dst_ip;
+            in_port_t           dst_port;
+        } map_peer;
+    };
+};
+
+typedef struct pcp_recv_msg {
+    opt_flags_e         opt_flags;
+    struct flow_key_data kd;
+    uint32_t key_bucket;
+
+    //response data
+    struct in6_addr     assigned_ext_ip;
+    in_port_t           assigned_ext_port;
+    uint8_t             recv_dscp;
+    uint32_t            recv_version;
+    uint32_t            recv_epoch;
+    uint32_t            recv_lifetime;
+    uint32_t            recv_result;
+    time_t              received_time;
+
+    //control data
+    uint32_t            pcp_server_indx;
+    struct sockaddr_storage rcvd_from_addr;
+    //msg buffer
+    uint32_t            pcp_msg_len;
+    char                pcp_msg_buffer[PCP_MAX_LEN];
+} pcp_recv_msg_t;
+
+struct pcp_ctx_s {
+    PCP_SOCKET socket;
+    struct pcp_client_db {
+        size_t pcp_servers_length;
+        pcp_server_t *pcp_servers;
+        size_t flow_cnt;
+        pcp_flow_t* flows[FLOW_HASH_SIZE];
+    } pcp_db;
+    pcp_flow_change_notify  flow_change_cb_fun;
+    void*                   flow_change_cb_arg;
+    pcp_recv_msg_t msg;
+};
+
 struct pcp_flow_s {
     // flow's data
+    struct pcp_ctx_s *  ctx;
     opt_flags_e         opt_flags;
-    struct flow_key_data {
-        uint8_t             operation;
-        struct in6_addr     src_ip;
-        struct in6_addr     pcp_server_ip;
-        struct pcp_nonce    nonce;
-        union {
-            struct mp_keydata {
-                uint8_t             protocol;
-                in_port_t           src_port;
-                struct in6_addr     dst_ip;
-                in_port_t           dst_port;
-            } map_peer;
-        };
-    } kd;
+    struct flow_key_data kd;
     uint32_t key_bucket;
 
     time_t lifetime;
@@ -145,17 +188,19 @@ struct pcp_flow_s {
     //msg buffer
     uint32_t            pcp_msg_len;
     char               *pcp_msg_buffer;
+    void               *user_data;
 };
 
 
 /* structure holding PCP server specific data */
 struct pcp_server {
+    pcp_ctx_t*                  ctx;
     uint32_t                    af;
     uint32_t                    pcp_ip[4];
     uint16_t                    pcp_port;
     uint32_t                    src_ip[4];
     char                        pcp_server_paddr[INET6_ADDRSTRLEN];
-    PCP_SOCKET                  pcp_server_socket;
+    struct sockaddr_storage     pcp_server_saddr;
     uint8_t                     pcp_version;
     uint8_t                     next_version;
     pcp_server_state_e          server_state;
@@ -163,8 +208,8 @@ struct pcp_server {
     time_t                      cepoch;
     struct pcp_nonce            nonce;
     uint32_t                    index;
-    pcp_flow_t*                  ping_flow_msg;
-    pcp_flow_t*                  restart_flow_msg;
+    pcp_flow_t*                 ping_flow_msg;
+    pcp_flow_t*                 restart_flow_msg;
     uint32_t                    ping_count;
     struct timeval              next_timeout;
     uint32_t                    natpmp_ext_addr;
@@ -179,13 +224,13 @@ pcp_flow_t* pcp_create_flow(pcp_server_t* s, struct flow_key_data *fkd);
 
 pcp_errno pcp_free_flow(pcp_flow_t* f);
 
-pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, uint32_t pcp_server_indx);
+pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, pcp_server_t* s);
 
 pcp_errno pcp_db_add_flow(pcp_flow_t* f);
 
 pcp_errno pcp_db_rem_flow(pcp_flow_t* f);
 
-pcp_errno pcp_db_foreach_flow(pcp_db_flow_iterate f, void* data);
+pcp_errno pcp_db_foreach_flow(pcp_ctx_t* ctx, pcp_db_flow_iterate f, void* data);
 
 void pcp_flow_clear_msg_buf(pcp_flow_t* f);
 
@@ -193,18 +238,15 @@ void pcp_flow_clear_msg_buf(pcp_flow_t* f);
 void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len);
 #endif
 
-int pcp_new_server(struct in6_addr *ip, uint16_t port);
+int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port);
 
-pcp_errno pcp_db_foreach_server(pcp_db_server_iterate f, void* data);
+pcp_errno pcp_db_foreach_server(pcp_ctx_t *ctx, pcp_db_server_iterate f, void* data);
 
-pcp_server_t * get_pcp_server(int pcp_server_index);
+pcp_server_t * get_pcp_server(pcp_ctx_t *ctx, int pcp_server_index);
 
-pcp_server_t *
-get_pcp_server_by_ip(struct in6_addr *ip);
+pcp_server_t * get_pcp_server_by_ip(pcp_ctx_t *ctx, struct in6_addr *ip);
 
-pcp_server_t * get_pcp_server_by_fd(PCP_SOCKET fd);
-
-void pcp_db_free_pcp_servers(void);
+void pcp_db_free_pcp_servers(pcp_ctx_t *ctx);
 
 pcp_errno pcp_delete_flow_intern(pcp_flow_t* f);
 

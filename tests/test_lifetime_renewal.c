@@ -36,6 +36,7 @@ pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
     struct timeval tout_end;
     struct timeval tout_select;
     int nflow_exit_states = pcp_eval_flow_state(flow, NULL);
+    pcp_ctx_t *ctx = flow->ctx;
 
     gettimeofday(&tout_end, NULL);
     tout_end.tv_usec += (timeout * 1000) % 1000000;
@@ -61,7 +62,7 @@ pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
         }
 
         //process all events and get timeout value for next select
-        pcp_handle_select(fdmax, &read_fds, &tout_select);
+        pcp_pulse(ctx, &tout_select);
 
         // check flow for reaching one of exit from wait states
         // (also handles case when flow is MAP for 0.0.0.0)
@@ -71,7 +72,9 @@ pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
         }
 
         FD_ZERO(&read_fds);
-        pcp_set_read_fdset(&fdmax, &read_fds);
+        fdmax = pcp_get_socket(ctx);
+        FD_SET(fdmax, &read_fds);
+        fdmax++;
 
         select(fdmax, &read_fds, NULL, NULL, &tout_select);
     }
@@ -96,6 +99,7 @@ int main(int argc, char *argv[]) {
     uint16_t src_port = 1235;
     uint8_t protocol = 6;
     uint32_t lifetime = 10;
+    pcp_ctx_t * ctx;
 
 //    pcp_log_level = PCP_DEBUG_DEBUG;
 
@@ -128,13 +132,14 @@ int main(int argc, char *argv[]) {
 
     pcp_log_level = argc>1?PCP_DEBUG_DEBUG:PCP_DEBUG_INFO;
 
-    pcp_add_server(Sock_pton("127.0.0.1"), 2);
+    ctx = pcp_init(0);
+    pcp_add_server(ctx, Sock_pton("127.0.0.1"), 2);
 
 
-    flow = pcp_new_flow((struct sockaddr*)&source_ip4,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         (struct sockaddr*)&destination_ip4,
                         (struct sockaddr*)&ext_ip4,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
     finish_time = time(NULL) + 21;
 
@@ -161,7 +166,7 @@ int main(int argc, char *argv[]) {
     pcp_close_flow(flow);
     pcp_delete_flow(flow);
     flow = NULL;
-    pcp_terminate(1);
+    pcp_terminate(ctx, 1);
 
     PD_SOCKET_CLEANUP();
 

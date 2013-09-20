@@ -75,7 +75,7 @@ void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_
     status =1;
 }
 
-int select_loop()
+int select_loop(pcp_ctx_t *ctx)
 {
     fd_set read_fds;
     int fdmax = 0;
@@ -98,14 +98,16 @@ int select_loop()
                 || (tout_select.tv_sec < 0)));
 
         //process all events and get timeout value for next select
-        pcp_handle_select(fdmax, &read_fds, &tout_select);
+        pcp_pulse(ctx, &tout_select);
 
         if (status==1) {
             return 0;
         }
 
         FD_ZERO(&read_fds);
-        pcp_set_read_fdset(&fdmax, &read_fds);
+        fdmax = pcp_get_socket(ctx);
+        FD_SET(fdmax, &read_fds);
+        fdmax++;
 
         select(fdmax, &read_fds, NULL, NULL, &tout_select);
     }
@@ -118,12 +120,14 @@ int main(int argc, char *argv[]) {
     int ret;
     uint8_t protocol = 6;
     uint32_t lifetime = 100;
+    pcp_ctx_t* ctx;
 
     PD_SOCKET_STARTUP();
 
     pcp_log_level = argc>1?PCP_DEBUG_DEBUG:1;
+    ctx=pcp_init(0);
 
-    pcp_add_server(Sock_pton("127.0.0.1:5351"), 2);
+    pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2);
 
     sock_pton("0.0.0.0:1234", (struct sockaddr*) &destination);
     sock_pton("127.0.0.1:1235", (struct sockaddr*) &source);
@@ -134,23 +138,24 @@ int main(int argc, char *argv[]) {
     printf("####  ***********************     ####\n");
     printf("######################################\n");
 
-    pcp_set_flow_change_cb(notify_cb_1, NULL);
+    pcp_set_flow_change_cb(ctx, notify_cb_1, NULL);
 
     flow = NULL;
 
-    flow = pcp_new_flow((struct sockaddr*)&source,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source,
                         (struct sockaddr*)&destination,
                         (struct sockaddr*)&ext,
-                        protocol, lifetime);
+                        protocol, lifetime, ctx);
 
-    ret = select_loop();
+    ret = select_loop(ctx);
 
-    pcp_terminate(0);
+    pcp_terminate(ctx, 0);
     sleep(1);
 
-    pcp_add_server(Sock_pton("[::1]:5351"), 2);
+    ctx = pcp_init(0);
+    pcp_add_server(ctx, Sock_pton("[::1]:5351"), 2);
 
-    pcp_set_flow_change_cb(notify_cb_2, (void*)1);
+    pcp_set_flow_change_cb(ctx, notify_cb_2, (void*)1);
 
     flow = NULL;
 
@@ -158,13 +163,13 @@ int main(int argc, char *argv[]) {
     sock_pton("[::1]:1235", (struct sockaddr*) &source);
     sock_pton("[::1]", (struct sockaddr*) &ext);
 
-    flow = pcp_new_flow((struct sockaddr*)&source,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source,
                         (struct sockaddr*)&destination,
                         (struct sockaddr*)&ext,
-                        protocol, lifetime);
+                        protocol, lifetime, ctx);
 
-    ret = ret || select_loop();
-    pcp_terminate(0);
+    ret = ret || select_loop(ctx);
+    pcp_terminate(ctx, 0);
 
     PD_SOCKET_CLEANUP();
 

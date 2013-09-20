@@ -51,17 +51,27 @@
 #include "pcp_server_discovery.h"
 #include "net/findsaddr.h"
 
-int pcp_add_server(struct sockaddr* pcp_server, uint8_t pcp_version)
+PCP_SOCKET pcp_get_socket(pcp_ctx_t *ctx) {
+
+    return ctx?ctx->socket:PCP_INVALID_SOCKET;
+}
+
+int pcp_add_server(pcp_ctx_t* ctx, struct sockaddr* pcp_server,
+        uint8_t pcp_version)
 {
     int res;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
+
+    if (!ctx) {
+        return PCP_ERR_BAD_ARGS;
+    }
     if (pcp_version>PCP_MAX_SUPPORTED_VERSION) {
         PCP_LOGGER_END(PCP_DEBUG_INFO);
         return PCP_ERR_UNSUP_VERSION;
     }
 
-    res = psd_add_pcp_server(pcp_server, pcp_version);
+    res = psd_add_pcp_server(ctx, pcp_server, pcp_version);
 
     PCP_LOGGER_END(PCP_DEBUG_INFO);
     return res;
@@ -82,49 +92,38 @@ static inline unsigned long mix(unsigned long a, unsigned long b, unsigned long 
      return c;
 }
 
-void pcp_init(uint8_t autodiscovery)
+pcp_ctx_t* pcp_init(uint8_t autodiscovery)
 {
-    srand(mix(clock(), (unsigned long)time(NULL), getpid()));
-
-    if (autodiscovery)
-        psd_add_gws();
-}
-
-typedef struct {
-    fd_set *read_fds;
-    int *fdmax;
-} set_fd_data_t;
-
-static int set_fd(pcp_server_t* s, void* data)
-{
-    set_fd_data_t* wd = (set_fd_data_t*) data;
-    if (s->pcp_server_socket == PCP_INVALID_SOCKET) {
-        return 0;
-    }
-    FD_SET(s->pcp_server_socket, (wd->read_fds));
-
-    if (s->pcp_server_socket!=PCP_INVALID_SOCKET) {
-        if ((*wd->fdmax < 0) || (*wd->fdmax==PCP_INVALID_SOCKET)||
-        ((int)s->pcp_server_socket >= (*wd->fdmax))) {
-                *wd->fdmax = s->pcp_server_socket+1;
-        }
-    }
-
-    return 0;
-}
-
-void pcp_set_read_fdset(int *fd_max, fd_set *read_fd_set)
-{
-    set_fd_data_t d;
+    pcp_ctx_t* ctx = calloc(1, sizeof(pcp_ctx_t));
+//    srand(mix(clock(), (unsigned long)time(NULL), getpid()));
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
-    d.read_fds = read_fd_set;
-    d.fdmax = fd_max;
-    if ((!fd_max)||(!read_fd_set)) {
-        return;
+
+    if (!ctx) {
+        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+        return NULL;
     }
-    pcp_db_foreach_server(set_fd,&d);
+
+    ctx->socket = socket(AF_INET6, SOCK_DGRAM, 0);
+
+    if (ctx->socket == PCP_INVALID_SOCKET) {         //LCOV_EXCL_START
+        char buff[128];
+
+        pcp_strerror(errno, buff, sizeof(buff));
+
+        PCP_LOGGER(PCP_DEBUG_WARN,
+                "Error (%s) occurred while creating a PCP socket.", buff);
+
+        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+        return NULL;
+    }//LCOV_EXCL_STOP
+    PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Created a new PCP socket.");
+
+    if (autodiscovery)
+        psd_add_gws(ctx);
+
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+    return ctx;
 }
 
 int pcp_eval_flow_state(pcp_flow_t* flow, pcp_fstate_e *fstate)
@@ -183,6 +182,7 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
 {
     fd_set read_fds;
     int fdmax;
+    PCP_SOCKET fd;
     struct timeval tout_end;
     struct timeval tout_select;
     pcp_fstate_e fstate;
@@ -211,13 +211,14 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
     tout_end.tv_usec = tout_end.tv_usec % 1000000;
     tout_end.tv_sec += timeout / 1000;
 
-    fdmax = 0;
-
     PCP_LOGGER(PCP_DEBUG_INFO,
             "Initialized wait for result of flow: %d, wait timeout %d ms",
             flow->key_bucket, timeout);
 
     FD_ZERO(&read_fds);
+
+    fd = pcp_get_socket(flow->ctx);
+    fdmax = fd + 1;
 
     // main loop
     for (;;) {
@@ -235,7 +236,7 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
         }
 
         //process all events and get timeout value for next select
-        pcp_handle_select(fdmax, &read_fds, &tout_select);
+        pcp_pulse(flow->ctx, &tout_select);
 
         // check flow for reaching one of exit from wait states
         // (also handles case when flow is MAP for 0.0.0.0)
@@ -248,7 +249,7 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
         }
 
         FD_ZERO(&read_fds);
-        pcp_set_read_fdset(&fdmax, &read_fds);
+        FD_SET(fd, &read_fds);
 
         PCP_LOGGER(PCP_DEBUG_DEBUG,
                 "Executing select with "
@@ -277,31 +278,6 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
     return pcp_state_succeeded;
 }
 
-static inline void fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
-        struct sockaddr* src)
-{
-    if (src->sa_family == AF_INET) {
-        struct sockaddr_in* src_ip4 = (struct sockaddr_in*) src;
-        if (src_ip4->sin_addr.s_addr != INADDR_ANY) {
-            S6_ADDR32(dst_ip6)[0] = 0;
-            S6_ADDR32(dst_ip6)[1] = 0;
-            S6_ADDR32(dst_ip6)[2] = htonl(0xFFFF);
-            S6_ADDR32(dst_ip6)[3] = src_ip4->sin_addr.s_addr;
-        } else {
-            unsigned i;
-            for (i=0; i<4; ++i)
-                S6_ADDR32(dst_ip6)[i]=0;
-        }
-        *dst_port = src_ip4->sin_port;
-    } else if (src->sa_family == AF_INET6) {
-        struct sockaddr_in6* src_ip6 = (struct sockaddr_in6*) src;
-        memcpy(dst_ip6,
-                src_ip6->sin6_addr.s6_addr,
-                sizeof(*dst_ip6));
-        *dst_port = src_ip6->sin6_port;
-    }
-}
-
 static inline void
 init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
         struct sockaddr* ext_addr)
@@ -309,9 +285,10 @@ init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     if (f && s) {
         struct timeval curtime;
+        f->ctx = s->ctx;
 
         if (ext_addr) {
-            fill_in6_addr(&f->map_peer.ext_ip,
+            pcp_fill_in6_addr(&f->map_peer.ext_ip,
                 &f->map_peer.ext_port, ext_addr);
         }
 
@@ -325,6 +302,8 @@ init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
             f->state = pfs_wait_for_server_init;
         }
         s->next_timeout = curtime;
+
+        f->user_data = NULL;
 
         pcp_db_add_flow(f);
 
@@ -379,7 +358,6 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
         memcpy(&d->kd->pcp_server_ip, s->pcp_ip, sizeof(d->kd->pcp_server_ip));
         memcpy(&d->kd->nonce, &s->nonce, sizeof(d->kd->nonce));
 
-        //f = pcp_create_flow(s, d->kd);
         CHECK_NULL_EXIT((f = pcp_create_flow(s, d->kd)));
 #ifdef PCP_SADSCP
         if (d->kd->operation == PCP_OPCODE_SADSCP) {
@@ -407,10 +385,13 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
 }
 
 pcp_flow_t* pcp_new_flow(
+        pcp_ctx_t * ctx,
         struct sockaddr* src_addr,
         struct sockaddr* dst_addr,
         struct sockaddr* ext_addr,
-        uint8_t protocol, uint32_t lifetime)
+        uint8_t protocol,
+        uint32_t lifetime,
+        void* userdata)
 {
     struct flow_key_data    kd;
     struct caasi_data data;
@@ -420,10 +401,10 @@ pcp_flow_t* pcp_new_flow(
 
     memset(&kd, 0, sizeof(kd));
 
-    if (!src_addr) {
+    if ((!src_addr) || (!ctx)) {
         return NULL;
     }
-    fill_in6_addr(&src_ip, &kd.map_peer.src_port, src_addr);
+    pcp_fill_in6_addr(&src_ip, &kd.map_peer.src_port, src_addr);
 
     kd.map_peer.protocol = protocol;
 
@@ -448,7 +429,7 @@ pcp_flow_t* pcp_new_flow(
     }
 
     if (dst_addr) {
-        fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port,
+        pcp_fill_in6_addr(&kd.map_peer.dst_ip, &kd.map_peer.dst_port,
             dst_addr);
         kd.operation = PCP_OPCODE_PEER;
 
@@ -500,7 +481,7 @@ pcp_flow_t* pcp_new_flow(
     data.kd = &kd;
     data.ffirst = NULL;
 
-    pcp_db_foreach_server(chain_and_assign_src_ip, &data);
+    pcp_db_foreach_server(ctx, chain_and_assign_src_ip, &data);
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return data.ffirst;
@@ -530,7 +511,7 @@ void pcp_flow_set_filter_opt(pcp_flow_t* f, struct sockaddr *filter_ip,
         if (!fiter->filter_option_present){
             fiter->filter_option_present = 1;
         }
-        fill_in6_addr(&fiter->filter_ip, &fiter->filter_port, filter_ip);
+        pcp_fill_in6_addr(&fiter->filter_ip, &fiter->filter_port, filter_ip);
         fiter->filter_prefix = filter_prefix;
         pcp_flow_updated(fiter);
     }
@@ -627,7 +608,7 @@ void pcp_close_flow(pcp_flow_t* f)
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         pcp_close_flow_intern(fiter);
     }
-    pcp_pulse(NULL);
+    pcp_pulse(f->ctx, NULL);
 }
 
 void pcp_delete_flow(pcp_flow_t* f)
@@ -644,18 +625,19 @@ static int delete_flow_iter(pcp_flow_t* f, void * data)
 {
     if (*(int*)data) {
         pcp_close_flow_intern(f);
-        pcp_pulse(NULL);
+        pcp_pulse(f->ctx, NULL);
     }
     pcp_delete_flow_intern(f);
 
     return 0;
 }
 
-void pcp_terminate(int close_flows)
+void pcp_terminate(pcp_ctx_t* ctx, int close_flows)
 {
     /* Causes compilation warning in x64 machines since pointer is 64-bit. Fixed*/
-    pcp_db_foreach_flow(delete_flow_iter,(void*)(int *)&close_flows);
-    pcp_db_free_pcp_servers();
+    pcp_db_foreach_flow(ctx, delete_flow_iter,(int *)&close_flows);
+    pcp_db_free_pcp_servers(ctx);
+    CLOSE(ctx->socket);
 }
 
 pcp_flow_info_t*
@@ -716,9 +698,23 @@ pcp_flow_get_info(pcp_flow_t* f, pcp_flow_info_t **info_buf, size_t *info_count)
     return (*info_buf);
 }
 
+void pcp_flow_set_user_data(pcp_flow_t* f, void* userdata)
+{
+    pcp_flow_t* fiter = f;
+    while (fiter != NULL) {
+        fiter->user_data = userdata;
+        fiter = fiter->next;
+    }
+}
+
+void* pcp_flow_get_user_data(pcp_flow_t* f)
+{
+    return (f?f->user_data:NULL);
+}
+
 #ifdef PCP_SADSCP
-pcp_flow_t* pcp_learn_dscp(uint8_t delay_tol, uint8_t loss_tol,
-uint8_t jitter_tol, char* app_name)
+pcp_flow_t* pcp_learn_dscp(pcp_ctx_t* ctx, uint8_t delay_tol, uint8_t loss_tol,
+                           uint8_t jitter_tol, char* app_name)
 {
     struct flow_key_data kd;
     struct caasi_data data;
@@ -740,7 +736,7 @@ uint8_t jitter_tol, char* app_name)
     data.toler_fields =
         (delay_tol&3)<<6 | ((loss_tol&3)<<4) | ((jitter_tol&3)<<2);
     data.app_name = app_name;
-    pcp_db_foreach_server(chain_and_assign_src_ip, &data);
+    pcp_db_foreach_server(ctx, chain_and_assign_src_ip, &data);
 
     return data.ffirst;
 }

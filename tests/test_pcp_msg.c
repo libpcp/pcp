@@ -21,8 +21,10 @@
 
 int main(void)
 {
+    pcp_ctx_t * ctx;
     pcp_log_level = PCP_DEBUG_NONE;
     PD_SOCKET_STARTUP();
+    ctx = pcp_init(0);
 #ifndef PCP_DISABLE_NATPMP
     {   // TEST NATPMP - parsing
         nat_pmp_announce_resp_t natpmp_a;
@@ -193,9 +195,10 @@ int main(void)
         pcp_server_t *s;
 
         memset(&fs, 0, sizeof(fs));
+        fs.ctx=ctx;
         TEST(build_pcp_msg(&fs)==NULL);
-        fs.pcp_server_indx=pcp_add_server(Sock_pton("127.0.0.1"),1);
-        s=get_pcp_server(fs.pcp_server_indx);
+        fs.pcp_server_indx=pcp_add_server(ctx, Sock_pton("127.0.0.1"),1);
+        s=get_pcp_server(ctx, fs.pcp_server_indx);
         fs.kd.operation = PCP_OPCODE_ANNOUNCE;
         TEST(build_pcp_msg(&fs)!=NULL);
         fs.kd.operation = 0x7f;

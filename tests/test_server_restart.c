@@ -53,11 +53,14 @@ int main(int argc, char *argv[]) {
     uint32_t lifetime2 = 15;
     pcp_flow_t* flow1 = NULL;
     pcp_flow_t* flow2 = NULL;
+    pcp_ctx_t* ctx;
 
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
 
-    pcp_add_server(Sock_pton("127.0.0.1:5351"), 2);
+    ctx=pcp_init(0);
+    TEST(ctx);
+    pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2);
 
     // first flow setup
     sock_pton("0.0.0.0:0", (struct sockaddr*) &destination1_ip4);
@@ -76,22 +79,22 @@ int main(int argc, char *argv[]) {
     printf("####   *****************************     ####\n");
     printf("#############################################\n");
 
-    flow1 = pcp_new_flow((struct sockaddr*)&source1_ip4,
+    flow1 = pcp_new_flow(ctx, (struct sockaddr*)&source1_ip4,
                         (struct sockaddr*)&destination1_ip4,
                         (struct sockaddr*)&ext1_ip4,
-                        protocol1, lifetime1);
+                        protocol1, lifetime1, NULL);
 
-    flow2 = pcp_new_flow((struct sockaddr*)&source2_ip4,
+    flow2 = pcp_new_flow(ctx, (struct sockaddr*)&source2_ip4,
                         (struct sockaddr*)&destination2_ip4,
                         (struct sockaddr*)&ext2_ip4,
-                        protocol2, lifetime2);
+                        protocol2, lifetime2, NULL);
 
     if (flow1->key_bucket > flow2->key_bucket) { //LCOV_EXCL_START
         pcp_flow_t* tmp = flow1;
         flow1=flow2; flow2=tmp;
     }  //LCOV_EXCL_STOP
 
-    pcp_set_flow_change_cb(notify_cb_1, NULL);
+    pcp_set_flow_change_cb(ctx, notify_cb_1, NULL);
     flow_to_wait = flow2;
 
     TEST(pcp_wait(flow1, 2000, 0) == pcp_state_succeeded);
@@ -116,7 +119,7 @@ int main(int argc, char *argv[]) {
     pcp_delete_flow(flow2);
     flow2 = NULL;
 
-    pcp_terminate(1);
+    pcp_terminate(ctx, 1);
 
     PD_SOCKET_CLEANUP();
     return 0;

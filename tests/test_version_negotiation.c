@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
     pcp_flow_t* flow = NULL;
     pcp_flow_info_t * flow_info = NULL;
     size_t flow_count;
+    pcp_ctx_t *ctx;
 
     PD_SOCKET_STARTUP();
     version = (argc == 2 ) ? (uint8_t)atoi(argv[1]) : PCP_MAX_SUPPORTED_VERSION;
@@ -56,23 +57,24 @@ int main(int argc, char *argv[]) {
     printf("####   *****************************   ####\n");
     printf("###########################################\n");
     printf(">>> PCP server version =  %d \n", version);
-
-    pcp_add_server(Sock_pton("127.0.0.1:5351"), version);
+    ctx = pcp_init(0);
+    pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), version);
 
     sock_pton("127.0.0.1:1234", (struct sockaddr*) &destination);
     sock_pton("127.0.0.1:1235", (struct sockaddr*) &source);
     sock_pton("10.20.30.40", (struct sockaddr*) &ext);
 
-    flow = pcp_new_flow((struct sockaddr*)&source,
+    flow = pcp_new_flow(ctx,
+                        (struct sockaddr*)&source,
                         (struct sockaddr*)&destination,
                         (struct sockaddr*)&ext,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
     TEST(pcp_wait(flow, 2000, 0) == pcp_state_succeeded);
     pcp_flow_get_info(flow, &flow_info, &flow_count);
     TEST(flow_info);
     printf("Flow result code %d \n", flow_info->pcp_result_code);
-    s = get_pcp_server(flow->pcp_server_indx);
+    s = get_pcp_server(ctx, flow->pcp_server_indx);
     TEST((s) && (s->pcp_version == 1) );
 
     pcp_close_flow(flow);
@@ -81,7 +83,7 @@ int main(int argc, char *argv[]) {
     free(flow_info);
 
     PD_SOCKET_CLEANUP();
-    pcp_terminate(0);
+    pcp_terminate(ctx, 0);
     return 0;
 
 }

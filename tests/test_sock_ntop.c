@@ -18,11 +18,11 @@
 #else
 #include <sys/un.h>        /* for Unix domain sockets */
 #endif
-#include "pcp_socket.h"
 #include "pcp_client_db.h"
 #include "test_macro.h"
 #include "unp.h"
 #include "gateway.h"
+#include "pcp_socket.h"
 
 int main(int argc, char** argv)
 {

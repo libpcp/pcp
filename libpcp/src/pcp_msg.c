@@ -356,7 +356,7 @@ void* build_pcp_msg(pcp_flow_t* flow)
         return NULL;
     }
 
-    pcp_server = get_pcp_server(flow->pcp_server_indx);
+    pcp_server = get_pcp_server(flow->ctx, flow->pcp_server_indx);
 
     if (!pcp_server) {
         return NULL;

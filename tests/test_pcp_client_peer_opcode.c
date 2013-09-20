@@ -30,11 +30,11 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage destination;
     struct sockaddr_storage source;
     struct sockaddr_storage ext;
-
     uint8_t protocol = 6;
     uint32_t lifetime = 10;
 
     pcp_flow_t* flow = NULL;
+    pcp_ctx_t * ctx;
 
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
     memset(&destination, 0, sizeof(destination));
     memset(&ext, 0, sizeof(ext));
 
-    TEST(pcp_add_server(Sock_pton("127.0.0.1:5351"), 2)==0);
+    ctx = pcp_init(0);
+    TEST(ctx);
+    TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);
 
     sock_pton("10.10.10.10:1234", (struct sockaddr*) &destination);
     sock_pton("127.0.0.1:1235", (struct sockaddr*) &source);
@@ -56,10 +58,10 @@ int main(int argc, char *argv[]) {
     printf("####   *************************     ####\n");
     printf("#########################################\n");
 
-    flow = pcp_new_flow((struct sockaddr*)&source,
+    flow = pcp_new_flow(ctx, (struct sockaddr*)&source,
                         (struct sockaddr*)&destination,
                         (struct sockaddr*)&ext,
-                        protocol, lifetime);
+                        protocol, lifetime, NULL);
 
     TEST(pcp_wait(flow, 3000, 0) == pcp_state_succeeded);
 
@@ -68,7 +70,7 @@ int main(int argc, char *argv[]) {
     flow = NULL;
 
     PD_SOCKET_CLEANUP();
-    pcp_terminate(0);
+    pcp_terminate(ctx, 0);
 
     return 0;
 }

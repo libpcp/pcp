@@ -29,10 +29,7 @@
 
 #include "pcp_client_db.h"
 
-#define SERVERPORT "5351"    // the port users will be connecting to
-
-pcp_errno psd_create_pcp_server_socket(int pcp_server_index);
-void psd_add_gws(void);
-pcp_errno psd_add_pcp_server(struct sockaddr* sa, uint8_t version);
+void psd_add_gws(pcp_ctx_t* ctx);
+pcp_errno psd_add_pcp_server(pcp_ctx_t* ctx, struct sockaddr* sa, uint8_t version);
 
 #endif /* PCP_SERVER_DISCOVERY_H_ */
