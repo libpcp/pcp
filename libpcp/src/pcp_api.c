@@ -92,9 +92,9 @@ static inline unsigned long mix(unsigned long a, unsigned long b, unsigned long 
      return c;
 }
 
-pcp_ctx_t* pcp_init(uint8_t autodiscovery)
+pcp_ctx_t* pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt)
 {
-    pcp_ctx_t* ctx = calloc(1, sizeof(pcp_ctx_t));
+    pcp_ctx_t* ctx = (pcp_ctx_t*)calloc(1, sizeof(pcp_ctx_t));
 //    srand(mix(clock(), (unsigned long)time(NULL), getpid()));
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
@@ -104,7 +104,11 @@ pcp_ctx_t* pcp_init(uint8_t autodiscovery)
         return NULL;
     }
 
-    ctx->socket = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (socket_vt) {
+        ctx->virt_socket_tb = *socket_vt;
+    }
+
+    ctx->socket = pcp_socket_create(ctx, AF_INET6, SOCK_DGRAM, 0);
 
     if (ctx->socket == PCP_INVALID_SOCKET) {         //LCOV_EXCL_START
         char buff[128];
@@ -180,6 +184,9 @@ int pcp_eval_flow_state(pcp_flow_t* flow, pcp_fstate_e *fstate)
 
 pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
 {
+#ifdef PCP_SOCKET_IS_VOIDPTR
+    return pcp_state_failed;
+#else
     fd_set read_fds;
     int fdmax;
     PCP_SOCKET fd;
@@ -276,6 +283,7 @@ pcp_fstate_e pcp_wait(pcp_flow_t* flow, int timeout, int exit_on_partial_res)
     }
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return pcp_state_succeeded;
+#endif //PCP_SOCKET_IS_VOIDPTR
 }
 
 static inline void
@@ -307,6 +315,7 @@ init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
 
         pcp_db_add_flow(f);
 
+#if PCP_MAX_LOG_LEVEL>=PCP_DEBUG_INFO
         if (pcp_log_level>=PCP_DEBUG_INFO) {
             char src_buf[INET6_ADDRSTRLEN];
             char dst_buf[INET6_ADDRSTRLEN];
@@ -323,6 +332,7 @@ init_flow(pcp_flow_t* f, pcp_server_t* s, int lifetime,
                 dst_buf,
                 ntohs(f->kd.map_peer.dst_port), f->key_bucket);
         }
+#endif
     }
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
 }
@@ -594,7 +604,24 @@ static inline void pcp_close_flow_intern(pcp_flow_t* f)
     if ((f->state!= pfs_wait_for_server_init) &&
             (f->state!= pfs_idle) &&
             (f->state!= pfs_failed)) {
-
+#if PCP_MAX_LOG_LEVEL>=PCP_DEBUG_INFO
+        if (pcp_log_level>=PCP_DEBUG_INFO) {
+            char src_buf[INET6_ADDRSTRLEN];
+            char dst_buf[INET6_ADDRSTRLEN];
+            char pcp_buf[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, &f->kd.src_ip, src_buf, sizeof(src_buf));
+            inet_ntop(AF_INET6, &f->kd.map_peer.dst_ip, dst_buf,
+                sizeof(dst_buf));
+            inet_ntop(AF_INET6, &f->kd.pcp_server_ip, pcp_buf, sizeof(pcp_buf));
+            PCP_LOGGER(PCP_DEBUG_INFO,
+                        "Flow closed (PCP server: %s; Int. addr: [%s]:%d; Dest. addr: [%s]:%d; Key bucket: %d)",
+                        pcp_buf,
+                        src_buf,
+                        ntohs(f->kd.map_peer.src_port),
+                        dst_buf,
+                        ntohs(f->kd.map_peer.dst_port), f->key_bucket);
+        }
+#endif
         f->lifetime = 0;
         pcp_flow_updated(f);
     } else {
@@ -637,7 +664,7 @@ void pcp_terminate(pcp_ctx_t* ctx, int close_flows)
     /* Causes compilation warning in x64 machines since pointer is 64-bit. Fixed*/
     pcp_db_foreach_flow(ctx, delete_flow_iter,(int *)&close_flows);
     pcp_db_free_pcp_servers(ctx);
-    CLOSE(ctx->socket);
+    pcp_socket_close(ctx);
 }
 
 pcp_flow_info_t*

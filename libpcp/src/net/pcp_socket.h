@@ -26,6 +26,20 @@
 #ifndef PCP_SOCKET_H
 #define PCP_SOCKET_H
 
+#ifdef PCP_SOCKET_IS_VOIDPTR
+#define PD_SOCKET_STARTUP()
+#define PD_SOCKET_CLEANUP()
+#define PCP_INVALID_SOCKET NULL
+#define PCP_SOCKET_ERROR (-1)
+
+#ifdef WIN32
+#define CLOSE(sockfd) closesocket(sockfd)
+#else
+#define CLOSE(sockfd) close(sockfd)
+#endif
+
+#else
+
 #ifdef WIN32
 
 int pcp_win_sock_startup();
@@ -46,10 +60,23 @@ int pcp_win_sock_cleanup();
 #define CLOSE(sockfd) close(sockfd)
 
 #endif
+#endif
+
+struct pcp_ctx_s;
 
 void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
         struct sockaddr* src);
 void
 pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, in_port_t sport);
+
+PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int protocol);
+
+ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int flags,
+        struct sockaddr *src_addr, socklen_t *addrlen);
+
+ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len, int flags,
+        struct sockaddr *dest_addr, socklen_t addrlen);
+
+int pcp_socket_close(struct pcp_ctx_s* ctx);
 
 #endif /* PCP_SOCKET_H*/

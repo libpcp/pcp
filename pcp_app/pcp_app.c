@@ -466,9 +466,9 @@ int main(int argc, char *argv[])
     }
 
     if (!p.dis_auto_discovery) {
-        p.ctx = pcp_init(ENABLE_AUTODISCOVERY);
+        p.ctx = pcp_init(ENABLE_AUTODISCOVERY, NULL);
     } else {
-        p.ctx = pcp_init(DISABLE_AUTODISCOVERY);
+        p.ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
     }
 
     for (server = p.pcp_servers; server!=NULL; server=server->next) {

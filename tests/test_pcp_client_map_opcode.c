@@ -14,16 +14,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef WIN32
+#ifdef WIN32
+#include "pcp_win_defines.h"
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
 
-#include "pcp_socket.h"
 #include "pcp.h"
 #include "unp.h"
 #include "test_macro.h"
+#include "pcp_socket.h"
 
 int main(int argc, char *argv[]) {
     struct sockaddr_storage destination;
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
 
-    TEST((ctx=pcp_init(0)));
+    TEST((ctx=pcp_init(0, NULL)));
     TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);
 
     sock_pton("0.0.0.0:1234", (struct sockaddr*) &destination);

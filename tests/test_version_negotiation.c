@@ -13,16 +13,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef WIN32
+#ifdef WIN32
+#include "pcp_win_defines.h"
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
-#include "pcp_socket.h"
+
 #include "pcp.h"
-#include "pcp_client_db.h"
 #include "unp.h"
 #include "test_macro.h"
+#include "pcp_socket.h"
+#include "pcp_client_db.h"
 
 int main(int argc, char *argv[]) {
     struct sockaddr_storage destination;
@@ -57,7 +60,7 @@ int main(int argc, char *argv[]) {
     printf("####   *****************************   ####\n");
     printf("###########################################\n");
     printf(">>> PCP server version =  %d \n", version);
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), version);
 
     sock_pton("127.0.0.1:1234", (struct sockaddr*) &destination);

@@ -49,7 +49,7 @@ main(int argc, char **argv)
     PD_SOCKET_STARTUP();
 
     pcp_log_level = PCP_DEBUG_WARN;
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
 
     sa.sin_family = AF_INET;
     inet_pton (AF_INET, "100.2.1.1", &sa.sin_addr);

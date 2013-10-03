@@ -112,6 +112,7 @@ struct pcp_ctx_s {
     pcp_flow_change_notify  flow_change_cb_fun;
     void*                   flow_change_cb_arg;
     pcp_recv_msg_t msg;
+    pcp_socket_vt_t virt_socket_tb;
 };
 
 struct pcp_flow_s {

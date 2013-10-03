@@ -25,8 +25,8 @@
 #include <unistd.h>
 #endif
 
-#include "pcp_socket.h"
 #include "pcp.h"
+#include "pcp_socket.h"
 #include "pcp_client_db.h"
 #include "unp.h"
 #include "test_macro.h"
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     printf("####   *****************************     ####\n");
     printf("#############################################\n");
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
 
     sock_pton(":1111", (struct sockaddr*) &source_ip4);
 
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     TEST(s->server_state == pss_wait_io);
     pcp_terminate(ctx, 1);
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2));
 
     flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     TEST(s->server_state == pss_wait_io);
     pcp_terminate(ctx, 1);
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2));
 
     flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 
     pcp_terminate(ctx, 1);
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     s=get_pcp_server(ctx, pcp_add_server(ctx, Sock_pton("1.1.1.1:5351"), 2));
     flow = pcp_new_flow(ctx, (struct sockaddr*)&source_ip4,
                         NULL,

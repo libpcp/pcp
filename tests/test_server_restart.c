@@ -22,6 +22,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #endif
+#include "pcp.h"
 #include "pcp_socket.h"
 #include "pcp_client_db.h"
 #include "unp.h"
@@ -58,7 +59,7 @@ int main(int argc, char *argv[]) {
     PD_SOCKET_STARTUP();
     pcp_log_level = 5;
 
-    ctx=pcp_init(0);
+    ctx=pcp_init(0, NULL);
     TEST(ctx);
     pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2);
 

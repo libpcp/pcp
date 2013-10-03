@@ -50,6 +50,7 @@
 #include "pcp_logger.h"
 #include "pcp_event_handler.h"
 #include "pcp_server_discovery.h"
+#include "pcp_socket.h"
 
 //   IRT:   Initial retransmission time, SHOULD be 3 seconds
 #define PCP_RETX_IRT 3
@@ -372,21 +373,13 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
 
     while (to_send_count != 0) {
         ret = flow->pcp_msg_len - to_send_count;
-#ifdef WIN32
-        ioctlsocket(ctx->socket, FIONBIO, &iMode);
-        ret = sendto(ctx->socket, flow->pcp_msg_buffer + ret,
-                flow->pcp_msg_len - ret, 0, s->pcp_server_saddr,
-                s->af==AF_INET?
-                        sizeof(struct sockaddr_in):
-                        sizeof(struct sockaddr_in6));
-#else
-        ret = sendto(ctx->socket, flow->pcp_msg_buffer + ret,
+
+        ret = pcp_socket_sendto(ctx, flow->pcp_msg_buffer + ret,
                 flow->pcp_msg_len - ret, MSG_DONTWAIT,
                 (struct sockaddr*)&s->pcp_server_saddr,
                 s->af==AF_INET?
                         sizeof(struct sockaddr_in):
                         sizeof(struct sockaddr_in6));
-#endif //WIN32
         if (ret == PCP_SOCKET_ERROR) { //LCOV_EXCL_START
 #ifdef WIN32
             int wsa_error = WSAGetLastError();
@@ -424,7 +417,7 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
     return PCP_ERR_SUCCESS;
 }
 
-static pcp_errno read_msg_from_socket(PCP_SOCKET socket, pcp_recv_msg_t *msg)
+static pcp_errno read_msg(pcp_ctx_t *ctx, pcp_recv_msg_t *msg)
 {
     ssize_t ret;
     socklen_t src_len = sizeof(msg->rcvd_from_addr);
@@ -433,27 +426,22 @@ static pcp_errno read_msg_from_socket(PCP_SOCKET socket, pcp_recv_msg_t *msg)
     OSDEP(iMode);
     memset(msg, 0, sizeof(*msg));
 
-#ifdef WIN32
-    ioctlsocket(socket, FIONBIO, &iMode);
-    if ((ret = recvfrom(socket, msg->pcp_msg_buffer,
-            sizeof(msg->pcp_msg_buffer), 0,
-            (struct sockaddr*) &msg->rcvd_from_addr, &src_len)) == PCP_SOCKET_ERROR) {
-#else
-    if ((ret = recvfrom(socket, msg->pcp_msg_buffer,
+    if ((ret = pcp_socket_recvfrom(ctx, msg->pcp_msg_buffer,
             sizeof(msg->pcp_msg_buffer), MSG_DONTWAIT,
             (struct sockaddr*) &msg->rcvd_from_addr, &src_len)) == PCP_SOCKET_ERROR) {
-#endif //WIN32
+
         if ((errno==EAGAIN)||(errno==EWOULDBLOCK)) {
             msg->pcp_msg_len = 0;
             return PCP_ERR_WOULDBLOCK;
+        } else {
+            char err_buf[ERR_BUF_LEN];
+
+            pcp_strerror(errno, err_buf, sizeof(err_buf));
+
+            PCP_LOGGER(PCP_DEBUG_PERR, "read_msg: %s", err_buf);
+
+            return PCP_ERR_RECV_FAILED;
         }
-        char err_buf[ERR_BUF_LEN];
-
-        pcp_strerror(errno, err_buf, sizeof(err_buf));
-
-        PCP_LOGGER(PCP_DEBUG_PERR, "FD: %d, recv: %s", socket, err_buf);
-
-        return PCP_ERR_RECV_FAILED;
     }
 
     msg->pcp_msg_len = ret;
@@ -871,7 +859,7 @@ static inline pcp_flow_t* get_ping_msg(pcp_server_t *s)
 
 struct flow_iterator_data {
     pcp_server_t * s;
-    pcp_event_e   event;
+    pcp_flow_event_e   event;
 };
 
 static int flow_send_event_iter(pcp_flow_t* f, void* data)
@@ -939,7 +927,13 @@ static pcp_server_state_e handle_wait_ping_resp_timeout(pcp_server_t *s)
         return pss_set_not_working;
     }
 
-    s->next_timeout = s->ping_flow_msg->timeout;
+    if (s->ping_flow_msg) {
+        s->next_timeout = s->ping_flow_msg->timeout;
+    } else {
+        s->next_timeout.tv_sec = 0;
+        s->next_timeout.tv_usec = 0;
+        return pss_ping;
+    }
     return pss_wait_ping_resp;
 }
 
@@ -1327,7 +1321,7 @@ int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
     }
 
     memset(msg, 1, sizeof(*msg));
-    ret = read_msg_from_socket(ctx->socket, msg);
+    ret = read_msg(ctx, msg);
 
     if (ret==PCP_ERR_SUCCESS) {
         struct in6_addr ip6;

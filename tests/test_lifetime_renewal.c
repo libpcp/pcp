@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 
     pcp_log_level = argc>1?PCP_DEBUG_DEBUG:PCP_DEBUG_INFO;
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     pcp_add_server(ctx, Sock_pton("127.0.0.1"), 2);
 
 

@@ -29,15 +29,15 @@ int main()
 
     PD_SOCKET_STARTUP();
     //test pcp_init & terminate
-    ctx = pcp_init(DISABLE_AUTODISCOVERY);
+    ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
     TEST(get_pcp_server(ctx, 0)==NULL);
     pcp_terminate(ctx, 1);
-    ctx = pcp_init(ENABLE_AUTODISCOVERY);
+    ctx = pcp_init(ENABLE_AUTODISCOVERY, NULL);
     TEST(get_pcp_server(ctx, 0)!=NULL);
     pcp_terminate(ctx, 1);
     TEST(get_pcp_server(ctx, 0)==NULL);
 
-    ctx = pcp_init(DISABLE_AUTODISCOVERY);
+    ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
     TEST(pcp_add_server(ctx, Sock_pton("[::1]:5351"), 1)==0);
     TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==1);
     pcp_terminate(ctx, 1);
@@ -46,7 +46,7 @@ int main()
     //TEST learn DSCP
     {
         pcp_flow_t* l1;
-        ctx = pcp_init(DISABLE_AUTODISCOVERY);
+        ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
         TEST((l1=pcp_learn_dscp(ctx, 1,1,1,NULL))==NULL); //NO PCP server to send req
 
         TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);
@@ -67,7 +67,7 @@ int main()
     }
 #endif
 
-    ctx = pcp_init(DISABLE_AUTODISCOVERY);
+    ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
     TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);
     TEST((pcp_new_flow(ctx, Sock_pton("[::1]:1234"), Sock_pton("[::1]"), NULL,
             IPPROTO_TCP, 100, NULL))==NULL);

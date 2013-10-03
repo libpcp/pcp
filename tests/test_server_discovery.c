@@ -22,8 +22,8 @@
 #include <arpa/inet.h>
 #endif
 
-#include "pcp_socket.h"
 #include "pcp.h"
+#include "pcp_socket.h"
 #include "pcp_server_discovery.h"
 #include "gateway.h"
 #include "pcp_logger.h"
@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 
     pcp_log_level = PCP_DEBUG_INFO;
 
-    ctx = pcp_init(ENABLE_AUTODISCOVERY);
+    ctx = pcp_init(ENABLE_AUTODISCOVERY, NULL);
 
     TEST((sindx1=pcp_add_server(ctx, Sock_pton("100.2.1.1:5351"), 1))>=0);
     TEST((sindx=pcp_add_server(ctx, Sock_pton("100.2.1.1:5351"),PCP_MAX_SUPPORTED_VERSION)) == sindx1);

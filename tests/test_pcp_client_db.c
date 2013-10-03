@@ -211,7 +211,7 @@ int main()
 {
     pcp_ctx_t *ctx;
     pcp_log_level = PCP_DEBUG_NONE;
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     test_pcp_server_functions(ctx);
     test_pcp_flow_funcs(ctx);
 

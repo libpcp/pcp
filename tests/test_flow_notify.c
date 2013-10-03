@@ -27,8 +27,8 @@
 
 #endif
 
-#include "pcp_socket.h"
 #include "pcp.h"
+#include "pcp_socket.h"
 #include "unp.h"
 #include "pcp_utils.h"
 #include "test_macro.h"
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     PD_SOCKET_STARTUP();
 
     pcp_log_level = argc>1?PCP_DEBUG_DEBUG:1;
-    ctx=pcp_init(0);
+    ctx=pcp_init(0, NULL);
 
     pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2);
 
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
     pcp_terminate(ctx, 0);
     sleep(1);
 
-    ctx = pcp_init(0);
+    ctx = pcp_init(0, NULL);
     pcp_add_server(ctx, Sock_pton("[::1]:5351"), 2);
 
     pcp_set_flow_change_cb(ctx, notify_cb_2, (void*)1);

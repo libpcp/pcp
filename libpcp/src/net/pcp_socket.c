@@ -23,11 +23,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef WIN32
-#include <winsock2.h>
-#endif
 #include <stdio.h>
 #include <string.h>
+#ifdef WIN32
+#include "pcp_win_defines.h"
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
+#include "pcp.h"
 #include "unp.h"
 #include "pcp_utils.h"
 #include "pcp_socket.h"
@@ -121,3 +125,70 @@ pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, in_port_t sport)
     }
 }
 
+PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int protocol)
+{
+    if (ctx->virt_socket_tb.sock_create) {
+        return ctx->virt_socket_tb.sock_create(domain, type, protocol);
+    }
+#ifndef PCP_SOCKET_IS_VOIDPTR
+    return (PCP_SOCKET)(long)socket(domain, type, protocol);
+#else
+    return PCP_INVALID_SOCKET;
+#endif
+}
+
+ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int flags,
+        struct sockaddr *src_addr, socklen_t *addrlen)
+{
+    if (ctx->virt_socket_tb.sock_recvfrom) {
+        return ctx->virt_socket_tb.sock_recvfrom(ctx->socket, buf, len, flags,
+                src_addr, addrlen);
+    }
+#ifndef PCP_SOCKET_IS_VOIDPTR
+#ifdef WIN32
+    if ((flags & MSG_DONTWAIT)!=0)
+    {
+        unsigned long iMode = 1;
+        ioctlsocket(ctx->socket, FIONBIO, &iMode);
+        flags&=~MSG_DONTWAIT;
+    }
+#endif //WIN32
+    return recvfrom(ctx->socket, buf, len, flags, src_addr, addrlen);
+#else  //PCP_SOCKET_IS_VOIDPTR
+    return -1;
+#endif //PCP_SOCKET_IS_VOIDPTR
+}
+
+ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len,
+        int flags, struct sockaddr *dest_addr, socklen_t addrlen)
+{
+    if (ctx->virt_socket_tb.sock_sendto) {
+        return ctx->virt_socket_tb.sock_sendto(ctx->socket, buf, len, flags,
+                dest_addr, addrlen);
+    }
+#ifndef PCP_SOCKET_IS_VOIDPTR
+#ifdef WIN32
+    if ((flags & MSG_DONTWAIT)!=0)
+    {
+        unsigned long iMode = 1;
+        ioctlsocket(ctx->socket, FIONBIO, &iMode);
+        flags&=~MSG_DONTWAIT;
+    }
+#endif //WIN32
+    return sendto(ctx->socket, buf, len, flags, dest_addr, addrlen);
+#else
+    return -1;
+#endif
+}
+
+int pcp_socket_close(struct pcp_ctx_s* ctx)
+{
+    if (ctx->virt_socket_tb.sock_close) {
+        return ctx->virt_socket_tb.sock_close(ctx->socket);
+    }
+#ifndef PCP_SOCKET_IS_VOIDPTR
+    return CLOSE((long)ctx->socket);
+#else
+    return PCP_SOCKET_ERROR;
+#endif
+}

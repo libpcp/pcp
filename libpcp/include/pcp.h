@@ -38,6 +38,7 @@
 #else //WIN32
 #include <sys/time.h>
 #include <stdint.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #endif
 
@@ -67,11 +68,17 @@ extern "C" {
 #define PCP_SERVER_DISCOVERY_RETRY_DELAY 3600
 #endif
 
+#ifdef PCP_SOCKET_IS_VOIDPTR
+#define PCP_SOCKET void*
+#else //PCP_SOCKET_IS_VOIDPTR
+
 #ifdef WIN32
 #define PCP_SOCKET SOCKET
-#else
+#else //WIN32
 #define PCP_SOCKET int
-#endif
+#endif //WIN32
+
+#endif //PCP_SOCKET_IS_VOIDPTR
 
 typedef struct pcp_flow_s pcp_flow_t;
 typedef struct pcp_userid_option *pcp_userid_option_p;
@@ -121,6 +128,15 @@ typedef enum {
 
 typedef struct pcp_ctx_s pcp_ctx_t;
 
+typedef struct pcp_socket_vt_s {
+    PCP_SOCKET (*sock_create) (int domain, int type, int protocol);
+    ssize_t (*sock_recvfrom)(PCP_SOCKET sockfd, void *buf, size_t len, int flags,
+            struct sockaddr *src_addr, socklen_t *addrlen);
+    ssize_t (*sock_sendto)(PCP_SOCKET sockfd, const void *buf, size_t len, int flags,
+            struct sockaddr *dest_addr, socklen_t addrlen);
+    int (*sock_close)(PCP_SOCKET sockfd);
+} pcp_socket_vt_t;
+
 typedef void (*external_logger)(pcp_debug_mode_t , const char*);
 
 void pcp_set_loggerfn(external_logger ext_log);
@@ -134,7 +150,7 @@ extern pcp_debug_mode_t pcp_log_level;
 #define ENABLE_AUTODISCOVERY  1
 #define DISABLE_AUTODISCOVERY 0
 
-pcp_ctx_t* pcp_init(uint8_t autodiscovery);
+pcp_ctx_t* pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt);
 
 //returns internal pcp server ID, -1 => error occurred
 int pcp_add_server(pcp_ctx_t* ctx, struct sockaddr* pcp_server,
