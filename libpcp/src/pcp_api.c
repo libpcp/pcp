@@ -23,6 +23,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -346,6 +350,7 @@ struct caasi_data {
     struct in6_addr* src_ip;
     uint8_t toler_fields;
     char* app_name;
+    void* userdata;
 };
 
 static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
@@ -382,6 +387,7 @@ static int chain_and_assign_src_ip(pcp_server_t* s, void * data)
         }
 #endif
         init_flow(f, s, d->lifetime, d->ext_addr);
+        f->user_data=d->userdata;
         if (d->fprev) {
             d->fprev->next_child = f;
         } else {
@@ -490,6 +496,7 @@ pcp_flow_t* pcp_new_flow(
     data.src_ip = &src_ip;
     data.kd = &kd;
     data.ffirst = NULL;
+    data.userdata = userdata ;
 
     pcp_db_foreach_server(ctx, chain_and_assign_src_ip, &data);
 
@@ -680,8 +687,17 @@ pcp_flow_get_info(pcp_flow_t* f, pcp_flow_info_t **info_buf, size_t *info_count)
     }
 
      for (;fiter!=NULL; fiter=fiter->next_child) {
+        void* old_info_buf = *info_buf;
         *info_buf = (pcp_flow_info_t *)realloc(*info_buf,
             ++n * sizeof(pcp_flow_info_t));
+        if (!*info_buf) {
+            if (old_info_buf) {
+                free(old_info_buf);
+            }
+            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
+            return NULL;
+        }
+
         memset((*info_buf) + n - 1, 0, sizeof(pcp_flow_info_t));
 
         switch (fiter->state) {
@@ -703,7 +719,7 @@ pcp_flow_get_info(pcp_flow_t* f, pcp_flow_info_t **info_buf, size_t *info_count)
         (*info_buf)[n-1].lifetime_renew_s = fiter->lifetime;
         (*info_buf)[n-1].pcp_result_code = fiter->recv_result;
         memcpy(&(*info_buf)[n-1].int_ip, &fiter->kd.src_ip,
-                sizeof((*info_buf)->int_ip));
+                sizeof(struct in6_addr));
         memcpy(&(*info_buf)[n-1].pcp_server_ip, &fiter->kd.pcp_server_ip,
                 sizeof((*info_buf)->pcp_server_ip));
         if ((fiter->kd.operation == PCP_OPCODE_MAP) ||
