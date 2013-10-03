@@ -35,6 +35,9 @@
 #include <ws2tcpip.h>
 #include <time.h>
 #include "stdint.h"
+#ifndef ssize_t
+typedef int ssize_t;
+#endif
 #else //WIN32
 #include <sys/time.h>
 #include <stdint.h>

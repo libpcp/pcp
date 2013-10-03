@@ -30,6 +30,10 @@
 
 #include "pcp.h"
 
+#ifdef NDEBUG
+#undef DEBUG
+#endif
+
 #ifdef WIN32
 
 void pcp_logger(pcp_debug_mode_t log_level, const char* fmt, ...);

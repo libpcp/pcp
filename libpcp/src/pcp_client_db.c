@@ -162,7 +162,7 @@ pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, pcp_server_t* s)
 {
     pcp_flow_t* *fdb;
     uint32_t bucket;
-    int pcp_server_index;
+    uint32_t pcp_server_index;
 
     if ((!fkd)||(!s)||(!s->ctx)) {
         return NULL;
@@ -184,7 +184,7 @@ pcp_flow_t* pcp_get_flow(struct flow_key_data *fkd, pcp_server_t* s)
 
 pcp_errno pcp_db_rem_flow(pcp_flow_t* f)
 {
-    pcp_flow_t* *fdb = NULL;
+    pcp_flow_t** fdb = NULL;
     pcp_ctx_t* ctx;
     if ((!f)||(f->key_bucket==EMPTY)||(!f->ctx)) {
         return PCP_ERR_BAD_ARGS;
@@ -276,10 +276,17 @@ int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
     pcp_server_t *ret = NULL;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
-    if (ctx->pcp_db.pcp_servers == NULL) {
+    if (!ctx->pcp_db.pcp_servers) {
         ctx->pcp_db.pcp_servers = (pcp_server_t *) calloc(PCP_INIT_SERVER_COUNT,
                 sizeof(*ctx->pcp_db.pcp_servers));
-
+        if (!ctx->pcp_db.pcp_servers) {
+            char buff[ERR_BUF_LEN];
+            pcp_strerror(errno, buff, sizeof(buff));
+            PCP_LOGGER(PCP_DEBUG_ERR,
+                    "Error (%s) occurred during realloc ", buff);
+            PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+            return PCP_ERR_NO_MEM;
+        }
         ctx->pcp_db.pcp_servers_length = PCP_INIT_SERVER_COUNT;
     }
 
@@ -363,7 +370,7 @@ pcp_errno pcp_db_foreach_server(pcp_ctx_t *ctx, pcp_db_server_iterate f, void* d
     }
 
     for (indx = 0; indx < ctx->pcp_db.pcp_servers_length; ++indx) {
-        if ((ctx->pcp_db.pcp_servers[indx].server_state == pss_unitialized)) {
+        if (ctx->pcp_db.pcp_servers[indx].server_state == pss_unitialized) {
             continue;
         }
         if ((*f)(ctx->pcp_db.pcp_servers + indx, data)) {

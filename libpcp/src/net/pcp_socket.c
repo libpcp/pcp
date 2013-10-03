@@ -110,7 +110,7 @@ void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
 }
 
 void
-pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, in_port_t sport)
+pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport)
 {
     if (IN6_IS_ADDR_V4MAPPED(sip)) {
         struct sockaddr_in *s = (struct sockaddr_in *)dst;

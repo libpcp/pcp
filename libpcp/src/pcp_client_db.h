@@ -71,9 +71,9 @@ struct flow_key_data {
     union {
         struct mp_keydata {
             uint8_t             protocol;
-            in_port_t           src_port;
+            uint16_t           src_port;
             struct in6_addr     dst_ip;
-            in_port_t           dst_port;
+            uint16_t           dst_port;
         } map_peer;
     };
 };
@@ -85,7 +85,7 @@ typedef struct pcp_recv_msg {
 
     //response data
     struct in6_addr     assigned_ext_ip;
-    in_port_t           assigned_ext_port;
+    uint16_t           assigned_ext_port;
     uint8_t             recv_dscp;
     uint32_t            recv_version;
     uint32_t            recv_epoch;
@@ -122,11 +122,11 @@ struct pcp_flow_s {
     struct flow_key_data kd;
     uint32_t key_bucket;
 
-    time_t lifetime;
+    uint32_t lifetime;
     union {
         struct {
             struct in6_addr     ext_ip;
-            in_port_t           ext_port;
+            uint16_t           ext_port;
         } map_peer;
 #ifdef PCP_SADSCP
         struct {

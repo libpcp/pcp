@@ -257,7 +257,7 @@ static const char *dbg_get_fstate_name(pcp_fstate_e s)
         "pcp_state_failed"
     };
 
-    if ((s>=0)&&(s<(int)sizeof(flow_state_names)/sizeof(flow_state_names[0]))) {
+    if ((s<(int)sizeof(flow_state_names)/sizeof(flow_state_names[0]))) {
         return flow_state_names[s];
     } else {
         return "";
@@ -634,7 +634,7 @@ handle_flow_event(pcp_flow_t* f, pcp_flow_event_e ev, pcp_recv_msg_t *r)
     pcp_flow_state_trans_t *trans_end = flow_transitions + FLOW_TRANS_COUNT;
     pcp_fstate_e before, after;
     struct in6_addr prev_ext_addr = f->map_peer.ext_ip;
-    in_port_t prev_ext_port = f->map_peer.ext_port;
+    uint16_t prev_ext_port = f->map_peer.ext_port;
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
     pcp_eval_flow_state(f, &before);
@@ -957,7 +957,7 @@ static pcp_server_state_e handle_version_negotiation(pcp_server_t* s)
     }
 
     if (
-        (s->pcp_version==0)
+        s->pcp_version==0
 #if PCP_MIN_SUPPORTED_VERSION>0
         || (s->next_version < PCP_MIN_SUPPORTED_VERSION)
 #endif

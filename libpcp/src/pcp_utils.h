@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "pcp_logger.h"
 #include "pcp_client_db.h"
 
@@ -89,7 +90,7 @@
 #define CHECK_RET_EXIT(func)        \
     do {                            \
         if (func < 0) {             \
-            log_err();              \
+            log_err("");            \
             exit (EXIT_FAILURE);    \
         }                           \
     } while(0)
@@ -97,7 +98,7 @@
 #define CHECK_NULL_EXIT(func)       \
     do {                            \
         if (func == NULL) {         \
-            log_err();              \
+            log_err("");            \
             exit (EXIT_FAILURE);    \
         }                           \
     } while(0)
@@ -106,14 +107,14 @@
 #define CHECK_RET(func)             \
     do {                            \
         if (func < 0) {             \
-            log_err();              \
+            log_err("");            \
         }                           \
     } while(0)
 
 #define CHECK_RET_GOTO_ERROR(func)  \
     do {                            \
         if (func < 0) {             \
-            log_err();              \
+            log_err("");            \
             goto ERROR;             \
         }                           \
     } while(0)
@@ -247,5 +248,26 @@ static inline void createNonce(struct pcp_nonce* nonce_field)
 #endif //WIN32
 }
 
+#ifndef HAVE_STRNDUP
+static inline char* pcp_strndup(const char *s, size_t size) {
+  char *ret;
+  char *end = memchr(s, 0, size);
+
+  if (end) {
+    /* Length + 1 */
+    size = end - s + 1;
+  } else {
+    size++;
+  }
+  ret = malloc(size);
+
+  if (ret) {
+      memcpy(ret, s, size);
+      ret[size-1] = '\0';
+  }
+  return ret;
+}
+#define strndup pcp_strndup
+#endif
 
 #endif /* PCP_UTILS_H_ */

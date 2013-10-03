@@ -40,6 +40,23 @@
 
 typedef uint16_t in_port_t;
 
+#if 1 //WINVER<NTDDI_VISTA
+static inline const char* pcp_inet_ntop(int af, const void* src, char* dst, int cnt)
+{
+    struct sockaddr_in srcaddr;
+
+    memset(&srcaddr, 0, sizeof(struct sockaddr_in));
+    memcpy(&(srcaddr.sin_addr), src, sizeof(srcaddr.sin_addr));
+
+    srcaddr.sin_family = af;
+    if (WSAAddressToString((struct sockaddr*) &srcaddr, sizeof(struct sockaddr_in), 0, dst, (LPDWORD) &cnt) != 0) {
+        return NULL;
+    }
+    return dst;
+}
+#define inet_ntop pcp_inet_ntop
+#endif
+
 #define ssize_t SSIZE_T
 #define strdup _strdup
 
@@ -47,26 +64,9 @@ typedef uint16_t in_port_t;
 
 #define snprintf _snprintf
 
-/* replacement for missing strndup() method on windows */
-static inline char * strndup(const char *s, unsigned int size) {
-  char *ret;
-  char *end = memchr(s, 0, size);
-
-  if (end) {
-    /* Length + 1 */
-    size = end - s + 1;
-  } else {
-    size++;
-  }
-  ret = malloc(size);
-
-  if (size) {
-      memcpy(ret, s, size);
-      ret[size-1] = '\0';
-  }
-  return ret;
-}
-
 int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+#define MSG_DONTWAIT    0x40
+
 
 #endif /*PCP_WIN_DEFINES*/

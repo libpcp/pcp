@@ -22,6 +22,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
 
 #include    <stdio.h>
 #include    <stdlib.h>
@@ -30,7 +33,6 @@
 #ifdef WIN32
 #include    "pcp_win_defines.h"
 #else
-#include    <sys/un.h>        /* for Unix domain sockets */
 #include    <sys/socket.h>    /* basic socket definitions */
 #include    <netinet/in.h>    /* sockaddr_in{} and other Internet defns */
 #include    <arpa/inet.h>    /* inet(3) functions */
@@ -39,7 +41,7 @@
 #include    <errno.h>
 #include    <ctype.h>
 #include    "gateway.h"
-
+#include    "pcp_utils.h"
 #include    "unp.h"
 
 #ifdef    HAVE_SOCKADDR_DL_STRUCT
@@ -61,7 +63,8 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen)
         if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL)
             return(NULL);  //LCOV_EXCL_LINE
         if (ntohs(sin->sin_port) != 0) {
-            snprintf(portstr, sizeof(portstr), ":%d", ntohs(sin->sin_port));
+            snprintf(portstr, sizeof(portstr)-1, ":%d", ntohs(sin->sin_port));
+            portstr[sizeof(portstr)-1] = '\0';
             strcat(str, portstr);
         }
         return(str);
@@ -76,7 +79,8 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen)
         if (inet_ntop(AF_INET6, &sin6->sin6_addr, str + 1, sizeof(str) - 1) == NULL)
             return(NULL);  //LCOV_EXCL_LINE
         if (ntohs(sin6->sin6_port) != 0) {
-            snprintf(portstr, sizeof(portstr), "]:%d", ntohs(sin6->sin6_port));
+            snprintf(portstr, sizeof(portstr)-1, "]:%d", ntohs(sin6->sin6_port));
+            portstr[sizeof(portstr)-1]='\0';
             strcat(str, portstr);
             return(str);
         }
@@ -84,36 +88,10 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen)
     }
 #endif
 
-#if defined (AF_UNIX) && !defined (WIN32)
-
-    case AF_UNIX: {
-        struct sockaddr_un    *unp = (struct sockaddr_un *) sa;
-
-            /* OK to have no pathname bound to the socket: happens on
-               every connect() unless client calls bind() first. */
-        if (unp->sun_path[0] == 0)
-            strcpy(str, "(no pathname bound)");
-        else
-            snprintf(str, sizeof(str), "%s", unp->sun_path);
-        return(str);
-    }
-#endif /*defined (AF_UNIX) && !defined (WIN32)*/
-
-#ifdef    HAVE_SOCKADDR_DL_STRUCT
-    case AF_LINK: {
-        struct sockaddr_dl    *sdl = (struct sockaddr_dl *) sa;
-
-        if (sdl->sdl_nlen > 0)
-            snprintf(str, sizeof(str), "%*s (index %d)",
-                     sdl->sdl_nlen, &sdl->sdl_data[0], sdl->sdl_index);
-        else
-            snprintf(str, sizeof(str), "AF_LINK, index=%d", sdl->sdl_index);
-        return(str);
-    }
-#endif
     default:
-        snprintf(str, sizeof(str), "sock_ntop: unknown AF_xxx: %d, len %d",
+        snprintf(str, sizeof(str)-1, "sock_ntop: unknown AF_xxx: %d, len %d",
                  sa->sa_family, salen);
+        str[sizeof(str)-1]='\0';
         return(str);
     }
     return (NULL);
@@ -128,7 +106,6 @@ Sock_ntop(const struct sockaddr *sa, socklen_t salen)
         perror("sock_ntop");    /* inet_ntop() sets errno */ //LCOV_EXCL_LINE
     return(ptr);
 }
-
 
 int
 sock_pton(const char* cp, struct sockaddr *sa)
@@ -245,15 +222,13 @@ sock_pton_with_prefix(const char* cp, struct sockaddr *sa, int *int_prefix)
 #define IPV4_OFFSET_PREFIX 96
 
     const char * prefix_begin = NULL;
-    const char * find_prefix=NULL;
     char * prefix = NULL;
-    struct sockaddr_in tmp_sa;
-    struct sockaddr_in6 tmp_sa6;
 
     const char * ip_end;
     char * host_name = NULL;
     const char* port=NULL;
-    if ((!cp)||(!sa)) {
+
+    if ((!cp)||(!sa)||(!int_prefix)) {
         return -1;
     }
 
@@ -263,7 +238,6 @@ sock_pton_with_prefix(const char* cp, struct sockaddr *sa, int *int_prefix)
     }
 
     ip_end = cp;
-    find_prefix = cp;
     if (*cp=='[') { //find matching bracket ']'
         ++cp;
         while ((*ip_end)&&(*ip_end!=']')) {
@@ -280,57 +254,17 @@ sock_pton_with_prefix(const char* cp, struct sockaddr *sa, int *int_prefix)
         if (prefix_begin){
             host_name=strndup(cp, prefix_begin-cp-1);
             prefix = strndup(prefix_begin, ip_end-prefix_begin);
-            *int_prefix = atoi(prefix);
-
-            if ( inet_pton(AF_INET, host_name,
-                    &tmp_sa.sin_addr ) ) {
-                if (*int_prefix>32) {
-                    //cleanup
-                    if (host_name)
-                        free(host_name);
-                    if (prefix)
-                        free(prefix);
-                    return -2;
-                } else {//prepare prefix for IPv4 mapped IPv6
-                    *int_prefix = *int_prefix + IPV4_OFFSET_PREFIX;
-                }
-            }
-            if (*int_prefix > 128) {
-                if (host_name)
-                    free(host_name);
-                if (prefix)
-                    free(prefix);
-                return -2;
+            if (prefix) {
+                *int_prefix = atoi(prefix);
+                free(prefix);
             }
         } else {
             host_name=strndup(cp, ip_end-cp);
-            if ( inet_pton(AF_INET, host_name,
-                    &tmp_sa.sin_addr) ) {
-                *int_prefix = IPV4_OFFSET_PREFIX + 32;
-            } else if ( inet_pton(AF_INET6, host_name,
-                    &tmp_sa6.sin6_addr) ) {
-                *int_prefix = 128;
-            }
+            *int_prefix=128;
         }
         ++ip_end;
     } else {
         return -2;
-    }
-
-    //if (host_name)
-    //    fprintf(stderr, "host_name in [] is %s\n", host_name);
-    //if (prefix)
-    //    fprintf(stderr, "prefix in [] is %s and uint prefix %d \n", prefix, *uint_prefix);
-
-    {//find begining of the prefix
-        if (!prefix_begin) {
-            while(*find_prefix){
-                if (*find_prefix == '/'){
-                    prefix_begin = find_prefix+1;
-                }
-                ++find_prefix;
-            }
-        }
     }
 
     { //find start of port part
@@ -398,5 +332,16 @@ sock_pton_with_prefix(const char* cp, struct sockaddr *sa, int *int_prefix)
 
     if (host_name)
         free (host_name);
+
+    if ((sa->sa_family==AF_INET)&&(*int_prefix > 32)) {
+
+        return -2;
+    }
+
+    if ((sa->sa_family==AF_INET6)&&(*int_prefix > 128)) {
+
+        return -2;
+    }
+
     return 0;
 }

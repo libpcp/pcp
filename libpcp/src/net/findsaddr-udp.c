@@ -27,7 +27,6 @@
  */
 
 #include <string.h>
-#include <unp.h>
 #ifndef WIN32
 # include <sys/types.h>
 # include <sys/socket.h>
@@ -38,7 +37,9 @@
 # include <stdint.h>
 #endif /*WIN32*/
 
+#include "pcp.h"
 #include "findsaddr.h"
+#include "unp.h"
 
 
 /*

@@ -28,7 +28,6 @@
 //#include <syslog.h>
 #include <sys/types.h>
 #ifndef WIN32
-#include <sys/sysctl.h>
 #include <sys/socket.h>         // place it before <net/if.h> struct sockaddr
 #endif //WIN32
 
@@ -61,6 +60,7 @@
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/sysctl.h>
 #include <net/if_dl.h>          //struct sockaddr_dl
 #define USE_SOCKET_ROUTE
 #endif
@@ -68,7 +68,9 @@
 #ifndef WIN32
 #include <arpa/inet.h>          // inet_addr()
 #include <net/route.h>          // struct rt_msghdr
+#ifdef USE_SOCKET_ROUTE
 #include <ifaddrs.h>            //getifaddrs() freeifaddrs()
+#endif
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>         //IPPROTO_GRE sturct sockaddr_in INADDR_ANY
@@ -112,7 +114,7 @@ void get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info);
 
 #define BUFSIZE 8192
 
-static int readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pId){
+static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pId){
     struct nlmsghdr *nlHdr;
     ssize_t readLen = 0, msgLen = 0;
 
@@ -204,7 +206,7 @@ int getgateways(struct in6_addr ** gws)
     /* Parse and print the response */
     rtCount = 0;
 
-    for(;NLMSG_OK(nlMsg,len);nlMsg = NLMSG_NEXT(nlMsg,len)){
+    for(;NLMSG_OK(nlMsg,(unsigned)len);nlMsg = NLMSG_NEXT(nlMsg,len)){
         {
             struct rtmsg *rtMsg;
             struct rtattr *rtAttr;
@@ -252,6 +254,8 @@ int getgateways(struct in6_addr ** gws)
 
 
 #if defined (USE_WIN32_CODE) && defined(WIN32)
+
+#if 0 // WINVER>=NTDDI_VISTA
 int getgateways(struct in6_addr ** gws)
 {
     PMIB_IPFORWARD_TABLE2 ipf_table;
@@ -283,6 +287,55 @@ int getgateways(struct in6_addr ** gws)
     }
     return i;
 }
+#else
+int getgateways(struct in6_addr ** gws)
+{
+    PMIB_IPFORWARDTABLE ipf_table;
+    DWORD ipft_size = 0;
+    int i = -1;
+
+    if (gws == NULL) {
+        return -1;
+    }
+
+    ipf_table =
+        (MIB_IPFORWARDTABLE *) malloc(sizeof (MIB_IPFORWARDTABLE));
+    if (ipf_table == NULL) {
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
+        return -1;
+    }
+
+    if (GetIpForwardTable(ipf_table, &ipft_size, 0) ==
+        ERROR_INSUFFICIENT_BUFFER) {
+        void* store_pointer = ipf_table;
+        ipf_table = (MIB_IPFORWARDTABLE *) realloc(ipf_table, ipft_size);
+        if (ipf_table == NULL) {
+            if (ipft_size)
+                free(store_pointer);
+            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
+            return -1;
+        }
+    }
+
+    if (GetIpForwardTable(ipf_table, &ipft_size, 0) == NO_ERROR) {
+        *gws =(struct in6_addr*)calloc(ipf_table->dwNumEntries, sizeof(struct in6_addr));
+        if (!*gws) {
+            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
+            return -1;
+        }
+        for (i = 0; i < (int) ipf_table->dwNumEntries; i++) {
+            /* Convert IPv4 addresses to strings */
+            uint32_t* ipv6 = (uint32_t*)(*gws)->u.Byte;
+            ipv6[3] = (uint32_t) ipf_table->table[i].dwForwardNextHop;
+        }
+    } else {
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "GetIpForwardTable failed.\n");
+    }
+    free(ipf_table);
+    return i;
+}
+#endif
+
 #endif /* #ifdef USE_WIN32_CODE */
 
 #ifdef USE_SOCKET_ROUTE
@@ -334,7 +387,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
 
     static int seq = 0;
     int err = 0;
-    size_t len = 0;
+    ssize_t len = 0;
     char *cp;
     pid_t pid;
 
@@ -449,7 +502,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
     msg.msghdr.rtm_msglen = len = cp - (char *)&msg;
 
     int sock = socket(PF_ROUTE, SOCK_RAW, AF_INET);
-    if (sock == PCP_INVALID_SOCKET) {
+    if (sock == -1) {
         perror("socket(PF_ROUTE, SOCK_RAW, AF_INET) failed");
         return -1;
     }
@@ -747,13 +800,12 @@ int getgateways(struct in6_addr ** gws)
         rtm = (struct rt_msghdr *) next;
         sa = (struct sockaddr *)(rtm + 1);
         get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
-        if ( (sa = rti_info[RTAX_DST]) != NULL) {
+/*        if ( (sa = rti_info[RTAX_DST]) != NULL) {
             printf("dest: %s", sock_ntop(sa, sa->sa_len));
-        }
+        }*/
 
         if ( (sa = rti_info[RTAX_GATEWAY]) != NULL)
-            printf(", gateway: %s \n", sock_ntop(sa, sa->sa_len));
-
+//            printf(", gateway: %s \n", sock_ntop(sa, sa->sa_len));
 
             if ((rtm->rtm_addrs & (RTA_DST|RTA_GATEWAY)) == (RTA_DST|RTA_GATEWAY)) {
                 struct in6_addr *in6 = NULL;
