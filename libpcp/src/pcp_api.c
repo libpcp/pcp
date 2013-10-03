@@ -635,14 +635,16 @@ void pcp_close_flow(pcp_flow_t* f)
     for (fiter = f; fiter!=NULL; fiter=fiter->next_child) {
         pcp_close_flow_intern(fiter);
     }
-    pcp_pulse(f->ctx, NULL);
+    if (f) {
+        pcp_pulse(f->ctx, NULL);
+    }
 }
 
 void pcp_delete_flow(pcp_flow_t* f)
 {
     pcp_flow_t *fiter = f, *fnext = NULL;
     while (fiter != NULL) {
-        fnext = fiter->next;
+        fnext = fiter->next_child;
         pcp_delete_flow_intern(fiter);
         fiter = fnext;
     }
@@ -730,7 +732,7 @@ void pcp_flow_set_user_data(pcp_flow_t* f, void* userdata)
     pcp_flow_t* fiter = f;
     while (fiter != NULL) {
         fiter->user_data = userdata;
-        fiter = fiter->next;
+        fiter = fiter->next_child;
     }
 }
 
