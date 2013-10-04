@@ -32,7 +32,8 @@
 #include <ws2ipdef.h>
 #include <winbase.h> /*GetCurrentProcessId*/ /*link with kernel32.dll*/
 #include "stdint.h"
-#define sleep(x) Sleep((x) * 1000) /* windows uses Sleep(miliseconds) method, instead of UNIX sleep(seconds) */
+/* windows uses Sleep(miliseconds) method, instead of UNIX sleep(seconds) */
+#define sleep(x) Sleep((x) * 1000)
 
 #ifdef _MSC_VER
 #define inline __inline /*In Visual Studio inline keyword only available in C++ */
@@ -43,13 +44,25 @@ typedef uint16_t in_port_t;
 #if 1 //WINVER<NTDDI_VISTA
 static inline const char* pcp_inet_ntop(int af, const void* src, char* dst, int cnt)
 {
-    struct sockaddr_in srcaddr;
+    struct sockaddr_storage srcaddr;
+    size_t slen;
 
-    memset(&srcaddr, 0, sizeof(struct sockaddr_in));
-    memcpy(&(srcaddr.sin_addr), src, sizeof(srcaddr.sin_addr));
-
-    srcaddr.sin_family = af;
-    if (WSAAddressToString((struct sockaddr*) &srcaddr, sizeof(struct sockaddr_in), 0, dst, (LPDWORD) &cnt) != 0) {
+    if (af == AF_INET) {
+        struct sockaddr_in* sa4=(struct sockaddr_in*)&srcaddr;
+        memset(sa4, 0, sizeof(struct sockaddr_in));
+        memcpy(&(sa4->sin_addr), src, sizeof(sa4->sin_addr));
+        slen = sizeof(struct sockaddr_in);
+    } else if (af == AF_INET6) {
+        struct sockaddr_in6* sa6=(struct sockaddr_in6*)&srcaddr;
+        memset(sa6, 0, sizeof(struct sockaddr_in6));
+        memcpy(&(sa6->sin6_addr), src, sizeof(sa6->sin6_addr));
+        slen = sizeof(struct sockaddr_in6);
+    } else {
+        return NULL;
+    }
+    srcaddr.ss_family = af;
+    if (WSAAddressToString((struct sockaddr*) &srcaddr, slen, 0, dst,
+        (LPDWORD) &cnt) != 0) {
         return NULL;
     }
     return dst;

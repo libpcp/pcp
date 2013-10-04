@@ -324,9 +324,10 @@ int getgateways(struct in6_addr ** gws)
             return -1;
         }
         for (i = 0; i < (int) ipf_table->dwNumEntries; i++) {
-            /* Convert IPv4 addresses to strings */
-            uint32_t* ipv6 = (uint32_t*)(*gws)->u.Byte;
-            ipv6[3] = (uint32_t) ipf_table->table[i].dwForwardNextHop;
+            if (ipf_table->table[i].ForwardType == MIB_IPROUTE_TYPE_INDIRECT) {
+                S6_ADDR32((*gws)+i)[0] = (uint32_t) ipf_table->table[i].dwForwardNextHop;
+                TO_IPV6MAPPED(((*gws)+i));
+            }
         }
     } else {
         PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "GetIpForwardTable failed.\n");

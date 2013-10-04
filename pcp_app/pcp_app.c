@@ -212,13 +212,13 @@ typedef pcp_deviceid_option_t pcp_app_deviceid_t;
 
 
 #define STRUCT_OPTION(a, b, c, d, e) {c, d, 0, 0},
-#define IGNORE(a)
+#define ARG_IGNORE(a)
 #define STRUCT_REQARG required_argument
 #define STRUCT_NOARG no_argument
 
 
 static struct option long_options[] = {
-        FOREACH_OPTION(STRUCT_OPTION, IGNORE, STRUCT_REQARG, STRUCT_NOARG)
+        FOREACH_OPTION(STRUCT_OPTION, ARG_IGNORE, STRUCT_REQARG, STRUCT_NOARG)
         {0, 0, 0, 0}
 };
 
@@ -238,12 +238,12 @@ const char usage_string[] = FOREACH_OPTION(HELP_STRUCT_OPT, HELP_HELP_MSG, STRUC
 #define SHORT_OPT_REQARG ":"
 #define SHORT_OPT_NOARG
 
-const char short_opts_string[] = FOREACH_OPTION(SHORT_OPT, IGNORE, SHORT_OPT_REQARG, SHORT_OPT_NOARG);
+const char short_opts_string[] = FOREACH_OPTION(SHORT_OPT, ARG_IGNORE, SHORT_OPT_REQARG, SHORT_OPT_NOARG);
 
 #define ENUM_OPTION(a, b, c, d, e) E_##b,
 
 typedef enum {
-     FOREACH_OPTION(ENUM_OPTION, IGNORE, SHORT_OPT_REQARG, SHORT_OPT_NOARG)
+     FOREACH_OPTION(ENUM_OPTION, ARG_IGNORE, SHORT_OPT_REQARG, SHORT_OPT_NOARG)
 } e_options;
 
 void print_usage(void){
@@ -814,7 +814,7 @@ void parse_params(struct pcp_params *p, int argc, char *argv[])
             &option_index)) != -1)
     {
 
-        FOREACH_OPTION(PARSE_OPTION, IGNORE, IGNORE, IGNORE)
+        FOREACH_OPTION(PARSE_OPTION, ARG_IGNORE, ARG_IGNORE, ARG_IGNORE)
         { // default action
             if (c=='?') {
                 if (optopt != 0) {

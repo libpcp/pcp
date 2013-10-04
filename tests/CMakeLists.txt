@@ -7,7 +7,6 @@ set(INC
 
 set(INCLUDE_SRC
         ${CMAKE_SOURCE_DIR}/tests
-		${CMAKE_SOURCE_DIR}/libpcp/src/net/pcp_socket.c
 		)
 set(INCLUDE_NET
 		${CMAKE_SOURCE_DIR}/libpcp/src/net)

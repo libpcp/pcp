@@ -33,12 +33,12 @@ set(LIBPCP_SRC_FILES
     ${SOURCE_FILES}/pcp_msg.c
     ${SOURCE_FILES}/pcp_server_discovery.c
     ${SOURCE_FILES}/net/sock_ntop.c
+    ${SOURCE_FILES}/net/pcp_socket.c
     )
 
 if (WIN32)
 set(LIBPCP_SRC_FILES
     ${LIBPCP_SRC_FILES}
-    ${WIN_SOURCE_FILES}/pcp_utils.h
     ${WIN_SOURCE_FILES}/windows/pcp_gettimeofday.c
     )
 endif()
@@ -46,9 +46,16 @@ endif()
 # header files for building pcp library
 set(LIBPCP_INC_FILES
     ${INCLUDE_FILES}/pcp.h
-    ${INCLUDE_FILES}
-    ${INCLUDE_FILES}/declspec.h
+    ${SOURCE_FILES}/pcp_client_db.h
+    ${SOURCE_FILES}/pcp_event_handler.h
+    ${SOURCE_FILES}/pcp_logger.h
+    ${SOURCE_FILES}/pcp_msg.h
+    ${SOURCE_FILES}/pcp_server_discovery.h
     ${SOURCE_FILES}/net/unp.h
+    ${SOURCE_FILES}/net/pcp_socket.h
+    ${SOURCE_FILES}/net/gateway.h
+    ${SOURCE_FILES}/net/findsaddr.h
+    ${INCLUDE_FILES}
     )
 
 # additional header file when compiling on Windows
