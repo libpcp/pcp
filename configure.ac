@@ -1,4 +1,4 @@
-AC_INIT([pcp-client], [1.6], [aeon@cisco.com])
+AC_INIT([pcp-client], [2.0], [aeon@cisco.com])
 AC_CANONICAL_SYSTEM
 AC_PREREQ([2.62])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign color-tests])
