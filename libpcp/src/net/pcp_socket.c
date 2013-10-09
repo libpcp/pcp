@@ -27,10 +27,15 @@
 #include <string.h>
 #ifdef WIN32
 #include "pcp_win_defines.h"
-#else
+#else  //WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
-#endif
+#ifndef PCP_SOCKET_IS_VOIDPTR
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#endif //PCP_SOCKET_IS_VOIDPTR
+#endif //!WIN32
 #include "pcp.h"
 #include "unp.h"
 #include "pcp_utils.h"
@@ -110,9 +115,10 @@ void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
 }
 
 void
-pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport)
+pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport,
+                  int ret_ipv6_mapped_ipv4)
 {
-    if (IN6_IS_ADDR_V4MAPPED(sip)) {
+    if ((!ret_ipv6_mapped_ipv4) && (IN6_IS_ADDR_V4MAPPED(sip))) {
         struct sockaddr_in *s = (struct sockaddr_in *)dst;
         s->sin_family = AF_INET;
         s->sin_addr.s_addr = S6_ADDR32(sip)[3];
@@ -131,7 +137,65 @@ PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int pr
         return ctx->virt_socket_tb.sock_create(domain, type, protocol);
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
-    return (PCP_SOCKET)(long)socket(domain, type, protocol);
+    {
+        PCP_SOCKET s;
+        struct sockaddr_storage sas;
+        struct sockaddr_in* sin = (struct sockaddr_in*)&sas;
+        struct sockaddr_in6* sin6 = (struct sockaddr_in6*)&sas;
+
+        memset(&sas, 0, sizeof(sas));
+        sas.ss_family = domain;
+        if (domain==AF_INET) {
+            sin->sin_port = htons(5350);
+        } else if (domain==AF_INET6) {
+            sin6->sin6_port = htons(5350);
+        } else {
+            PCP_LOGGER(PCP_DEBUG_ERR,"Unsupported socket domain:%d",domain);
+        }
+        s = (PCP_SOCKET)socket(domain, type, protocol);
+        {
+            uint32_t flg;
+#ifdef WIN32
+            unsigned long iMode = 1;
+            ioctlsocket(s, FIONBIO, &iMode);
+#else
+            flg = fcntl(s, F_GETFL, 0);
+            fcntl(s, F_SETFL, flg | O_NONBLOCK);
+#endif
+            flg = 0;
+            if (PCP_SOCKET_ERROR == setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+                (char*)&flg, sizeof(flg))) {
+                PCP_LOGGER(PCP_DEBUG_ERR, "%s",
+                    "Dual-stack sockets are not supported on this platform. "
+                    "Recompile library with disabled IPv6 support.");
+                CLOSE(s);
+                return PCP_INVALID_SOCKET;
+            }
+        }
+        while (bind(s, (struct sockaddr*)&sas, SA_LEN((struct sockaddr*) &sas))
+            == PCP_SOCKET_ERROR) {
+#ifdef WIN32
+            int errnum = WSAGetLastError();
+            if (errnum == WSAEADDRINUSE) {
+#else
+            int errnum = errno;
+            if (errnum == EADDRINUSE) {
+#endif
+                if (sas.ss_family==AF_INET) {
+                    sin->sin_port=htons(ntohs(sin->sin_port)+1);
+                } else {
+                    sin6->sin6_port=htons(ntohs(sin6->sin6_port)+1);
+                }
+            } else {
+                char errbuf[100];
+                pcp_strerror(errnum, errbuf, sizeof(errbuf));
+                PCP_LOGGER(PCP_DEBUG_ERR,"bind error(%d): %s",errnum,errbuf);
+                CLOSE(s);
+                return PCP_INVALID_SOCKET;
+            }
+        }
+        return s;
+    }
 #else
     return PCP_INVALID_SOCKET;
 #endif
@@ -146,14 +210,39 @@ ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int fl
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
 #ifdef WIN32
-    if ((flags & MSG_DONTWAIT)!=0)
     {
-        unsigned long iMode = 1;
-        ioctlsocket(ctx->socket, FIONBIO, &iMode);
-        flags&=~MSG_DONTWAIT;
+        ssize_t ret;
+
+/*        if (*addrlen>sizeof(struct sockaddr_in)) {
+            *addrlen=sizeof(struct sockaddr_in);
+        }*/
+
+        ret = recvfrom(ctx->socket, buf, len, 0, src_addr, addrlen);
+        if (ret==PCP_SOCKET_ERROR) {
+            int winerrno=WSAGetLastError();
+            if (winerrno==WSAEWOULDBLOCK)  {
+                ret=PCP_ERR_WOULDBLOCK;
+            } else {
+                ret=PCP_ERR_RECV_FAILED;
+            }
+        }
+        return ret;
+    }
+#else  //WIN32
+    {
+        ssize_t ret;
+
+        ret = recvfrom(ctx->socket, buf, len, flags, src_addr, addrlen);
+        if (ret==PCP_SOCKET_ERROR) {
+            if ((errno==EAGAIN)||(errno==EWOULDBLOCK)) {
+                ret=PCP_ERR_WOULDBLOCK;
+            } else {
+                ret=PCP_ERR_RECV_FAILED;
+            }
+        }
+        return ret;
     }
 #endif //WIN32
-    return recvfrom(ctx->socket, buf, len, flags, src_addr, addrlen);
 #else  //PCP_SOCKET_IS_VOIDPTR
     return -1;
 #endif //PCP_SOCKET_IS_VOIDPTR
@@ -167,15 +256,7 @@ ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len,
                 dest_addr, addrlen);
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
-#ifdef WIN32
-    if ((flags & MSG_DONTWAIT)!=0)
-    {
-        unsigned long iMode = 1;
-        ioctlsocket(ctx->socket, FIONBIO, &iMode);
-        flags&=~MSG_DONTWAIT;
-    }
-#endif //WIN32
-    return sendto(ctx->socket, buf, len, flags, dest_addr, addrlen);
+    return sendto(ctx->socket, buf, len, 0, dest_addr, addrlen);
 #else
     return -1;
 #endif

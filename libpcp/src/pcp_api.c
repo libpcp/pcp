@@ -112,7 +112,13 @@ pcp_ctx_t* pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt)
         ctx->virt_socket_tb = *socket_vt;
     }
 
-    ctx->socket = pcp_socket_create(ctx, AF_INET6, SOCK_DGRAM, 0);
+    ctx->socket = pcp_socket_create(ctx,
+#ifdef PCP_USE_IPV6_SOCKET
+        AF_INET6,
+#else
+        AF_INET,
+#endif
+        SOCK_DGRAM, 0);
 
     if (ctx->socket == PCP_INVALID_SOCKET) {         //LCOV_EXCL_START
         char buff[128];

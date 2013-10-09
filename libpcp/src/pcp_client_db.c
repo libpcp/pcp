@@ -35,8 +35,6 @@
 #include "pcp_client_db.h"
 #include "pcp_logger.h"
 
-#define FLOW_HASH_BITS 8
-#define FLOW_HASH_SIZE (2<<FLOW_HASH_BITS)
 #define EMPTY 0xFFFFFFFF
 #define PCP_INIT_SERVER_COUNT 5
 
@@ -318,7 +316,11 @@ int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
     }
 
     ret->epoch = ~0;
+#ifdef PCP_USE_IPV6_SOCKET
+    ret->af = AF_INET6;
+#else
     ret->af = IN6_IS_ADDR_V4MAPPED(ip) ? AF_INET: AF_INET6;
+#endif
     IPV6_ADDR_COPY((struct in6_addr*)ret->pcp_ip, ip);
     ret->pcp_port = port;
     ret->ctx = ctx;

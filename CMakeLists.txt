@@ -1,22 +1,36 @@
 cmake_minimum_required(VERSION 2.8)
 
-if (WIN32)
-# In Visual Studio, forces the set of available configurations to be CMAKE_BUILD_TYPE only.
-    set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE)
-	
-# These two libs are needed by windows, for socket operations
-set (WIN_SOCK_LIBS
-	${WIN_SOCK_LIBS}ws2_32.lib
-	${WIN_SOCK_LIBS}Iphlpapi.lib)
+set(WITH_EXPERIMENTAL ON CACHE BOOL "Experimental extensions suppport")
+set(USE_IPV6_SOCKET ON CACHE BOOL "Use IPv6 socket")
+
+if(WITH_EXPERIMENTAL)
+add_definitions(-DPCP_SADSCP -DPCP_EXPERIMENTAL -DPCP_FLOW_PRIORITY)
 endif()
 
-    project(pcp-client)
+if(USE_IPV6_SOCKET)
+add_definitions(-DPCP_USE_IPV6_SOCKET)
+endif()
+
+if (WIN32)
+	# In Visual Studio, forces the set of available configurations to be CMAKE_BUILD_TYPE only.
+    set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE)
+	
+	# These two libs are needed by windows, for socket operations
+	set (WIN_SOCK_LIBS
+	${WIN_SOCK_LIBS}ws2_32.lib
+	${WIN_SOCK_LIBS}Iphlpapi.lib)
+
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
+
+project(pcp-client)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 
 # LINUX is not a pre-defined like WIN32 or APPLE, so let's set it ourselves.
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 set(LINUX 1)
-    message("Linux detected.")
+	message("Linux detected.")
 endif()
 
 # Build project in different directory than where the sources are

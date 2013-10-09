@@ -10,6 +10,7 @@ set(PCP_SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/win_utils/getopt_long.c
     ${CMAKE_SOURCE_DIR}/libpcp/src/net/pcp_socket.c
     ${CMAKE_SOURCE_DIR}/libpcp/src/windows/pcp_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/libpcp/src/pcp_logger.c
 	)
     
 set(INC 

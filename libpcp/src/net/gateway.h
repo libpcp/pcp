@@ -81,28 +81,4 @@ int route_get_sa(struct sockaddr *dst, in_addr_t * mask, struct sockaddr * gatew
 int
 get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family);
 
-#ifndef SA_LEN
-#ifdef HAVE_SOCKADDR_SA_LEN
-#define SA_LEN(addr)    ((addr)->sa_len)
-#else /* HAVE_SOCKADDR_SA_LEN */
-static inline size_t
-get_sa_len(struct sockaddr *addr)
-{
-    switch (addr->sa_family) {
-
-    case AF_INET:
-        return (sizeof (struct sockaddr_in));
-
-    case AF_INET6:
-        return (sizeof (struct sockaddr_in6));
-
-    default:
-        return (sizeof (struct sockaddr));
-    }
-}
-#define SA_LEN(addr)    (get_sa_len(addr))
-#endif /* HAVE_SOCKADDR_SA_LEN */
-#endif /* SA_LEN */
-
-
 #endif

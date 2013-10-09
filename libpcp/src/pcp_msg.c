@@ -156,7 +156,7 @@ add_md_option(pcp_flow_t* f, pcp_metadata_option_t *md_opt, md_val_t* md)
 static void * add_md_options(pcp_flow_t* f, void* cur)
 {
     uint32_t i;
-    md_val_t * md = f->md_vals;
+    md_val_t * md;
     pcp_metadata_option_t *md_opt = (pcp_metadata_option_t *)cur;
 
     for (i=f->md_val_count, md=f->md_vals; i>0 && md!=NULL; --i, ++md)

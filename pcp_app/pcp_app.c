@@ -365,6 +365,12 @@ void print_get_dscp(pcp_flow_t* f)
      }
 }
 
+struct pcp_server_list {
+        char *server;
+        struct pcp_server_list *next;
+        int version;
+};
+
 // CLI options
 struct pcp_params {
     char *port;
@@ -402,11 +408,7 @@ struct pcp_params {
     uint8_t has_mappeer_data;
     pcp_ctx_t *ctx;
 
-    struct pcp_server_list {
-        char *server;
-        struct pcp_server_list *next;
-        int version;
-    } *pcp_servers;
+    struct pcp_server_list *pcp_servers;
 };
 
 void parse_params(struct pcp_params *p, int argc, char *argv[]);
@@ -527,7 +529,7 @@ int main(int argc, char *argv[])
 
 #ifdef PCP_SADSCP
     } else if (p.has_sadscp_data) {
-        flow = pcp_learn_dscp(p.delay_tolerance, p.loss_tolerance,
+        flow = pcp_learn_dscp(p.ctx, p.delay_tolerance, p.loss_tolerance,
                 p.jitter_tolerance, p.app_name);
 #endif
     }
@@ -579,11 +581,14 @@ void static inline parse_opt_fast_ret(struct pcp_params *p)
 
 void static inline parse_opt_server(struct pcp_params *p)
 {
-     struct pcp_server_list* l = p->pcp_servers;
-     p->pcp_servers = malloc(sizeof(*l));
-     p->pcp_servers->server = optarg;
-     p->pcp_servers->next = l;
-     p->pcp_servers->version = p->pcp_version;
+    struct pcp_server_list* l ;
+    l = (struct pcp_server_list*)malloc(sizeof(*l));
+    if (l) {
+        l->server = optarg;
+        l->version = p->pcp_version;
+        l->next = p->pcp_servers;
+        p->pcp_servers = l;
+     }
 }
 
 void static inline parse_opt_version(struct pcp_params *p)

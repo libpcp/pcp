@@ -67,7 +67,8 @@ struct pcp_ctx_s;
 void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
         struct sockaddr* src);
 void
-pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport);
+pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport,
+                  int ret_ipv6_mapped_ipv4);
 
 PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int protocol);
 
@@ -78,5 +79,33 @@ ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len, in
         struct sockaddr *dest_addr, socklen_t addrlen);
 
 int pcp_socket_close(struct pcp_ctx_s* ctx);
+
+#ifndef SA_LEN
+#ifdef HAVE_SOCKADDR_SA_LEN
+#define SA_LEN(addr)    ((addr)->sa_len)
+#else /* HAVE_SOCKADDR_SA_LEN */
+
+#if (defined(_MSC_VER) && !defined(inline))
+#define inline __inline /*In Visual Studio inline keyword only available in C++ */
+#endif
+
+static inline size_t
+get_sa_len(struct sockaddr *addr)
+{
+    switch (addr->sa_family) {
+
+    case AF_INET:
+        return (sizeof (struct sockaddr_in));
+
+    case AF_INET6:
+        return (sizeof (struct sockaddr_in6));
+
+    default:
+        return (sizeof (struct sockaddr));
+    }
+}
+#define SA_LEN(addr)    (get_sa_len(addr))
+#endif /* HAVE_SOCKADDR_SA_LEN */
+#endif /* SA_LEN */
 
 #endif /* PCP_SOCKET_H*/

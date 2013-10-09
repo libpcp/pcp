@@ -33,7 +33,7 @@
 #include <winbase.h> /*GetCurrentProcessId*/ /*link with kernel32.dll*/
 #include "stdint.h"
 /* windows uses Sleep(miliseconds) method, instead of UNIX sleep(seconds) */
-#define sleep(x) Sleep((x) * 1000)
+#define sleep(x) Sleep((x) * 1000) 
 
 #ifdef _MSC_VER
 #define inline __inline /*In Visual Studio inline keyword only available in C++ */

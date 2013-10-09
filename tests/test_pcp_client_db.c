@@ -31,75 +31,83 @@ int ret_1_func(pcp_server_t *f, void* data)
 void test_pcp_server_functions(pcp_ctx_t *ctx)
 {
     struct in6_addr ip4, ip6;
-        pcp_server_t *s1=NULL, *s2=NULL;
-        int si1, si2;
-        S6_ADDR32(&ip4)[0] = 0;
-        S6_ADDR32(&ip4)[1] = 0;
-        S6_ADDR32(&ip4)[2] = htonl(0xffff);
-        S6_ADDR32(&ip4)[3] = 0x08080808;
+    pcp_server_t *s1=NULL, *s2=NULL;
+    pcp_server_t* sret;
+    int si1, si2;
+    S6_ADDR32(&ip4)[0] = 0;
+    S6_ADDR32(&ip4)[1] = 0;
+    S6_ADDR32(&ip4)[2] = htonl(0xffff);
+    S6_ADDR32(&ip4)[3] = 0x08080808;
 
 
-        TEST(get_pcp_server(ctx, 1)==NULL);
-        TEST(get_pcp_server(ctx, 0)==NULL);
-        TEST(get_pcp_server(ctx, -1)==NULL);
-        si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
-        TEST(get_pcp_server(NULL, si1)==NULL);
-        TEST(si1 == 0);
-        s1=get_pcp_server(ctx, si1);
-        TEST(s1!=NULL);
-        TEST(get_pcp_server(ctx, 1)==NULL);
-        TEST((s1->af==AF_INET)&&(IN6_ARE_ADDR_EQUAL(&ip4, s1->pcp_ip)));
+    TEST(get_pcp_server(ctx, 1)==NULL);
+    TEST(get_pcp_server(ctx, 0)==NULL);
+    TEST(get_pcp_server(ctx, -1)==NULL);
+    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    TEST(get_pcp_server(NULL, si1)==NULL);
+    TEST(si1 == 0);
+    s1=get_pcp_server(ctx, si1);
+    TEST(s1!=NULL);
+    TEST(get_pcp_server(ctx, 1)==NULL);
+    TEST(IN6_ARE_ADDR_EQUAL(&ip4, (struct in6_addr*)s1->pcp_ip));
 
-        si2=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
-        TEST(si2 == 1);
-        s2=get_pcp_server(ctx, 1);
-        TEST(s2!=NULL);
-        TEST((s2->af==AF_INET)&&(IN6_ARE_ADDR_EQUAL(&ip4, s2->pcp_ip)));
-        TEST(get_pcp_server(ctx, 5)==NULL);
+    si2=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    TEST(si2 == 1);
+    s2=get_pcp_server(ctx, 1);
+    TEST(s2!=NULL);
+    TEST(IN6_ARE_ADDR_EQUAL(&ip4, (struct in6_addr*)s2->pcp_ip));
+    TEST(get_pcp_server(ctx, 5)==NULL);
 
-        S6_ADDR32(&ip6)[0] = 0;
-        S6_ADDR32(&ip6)[1] = 1;
-        S6_ADDR32(&ip6)[2] = 2;
-        S6_ADDR32(&ip6)[3] = 3;
+#ifdef PCP_USE_IPV6_SOCKET
+    S6_ADDR32(&ip6)[0] = 0;
+    S6_ADDR32(&ip6)[1] = 1;
+    S6_ADDR32(&ip6)[2] = 2;
+    S6_ADDR32(&ip6)[3] = 3;
 
-        si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
-        TEST(si2 == 2);
-        s2=get_pcp_server(ctx, 2);
-        TEST(s2!=NULL);
-        TEST((s2->af==AF_INET6)&&(IN6_ARE_ADDR_EQUAL(&ip6, s2->pcp_ip)));
-        TEST(get_pcp_server(ctx, 5)==NULL);
+    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
+    TEST(si2 == 2);
+    s2=get_pcp_server(ctx, 2);
+    TEST(s2!=NULL);
+    TEST(IN6_ARE_ADDR_EQUAL(&ip6, (struct in6_addr*)s2->pcp_ip));
+    TEST(get_pcp_server(ctx, 5)==NULL);
 
-        TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 3);
-        TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 4);
-        TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 5);
-        TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 6);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 3);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 4);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 5);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 6);
 
-        TEST(s1==get_pcp_server_by_ip(ctx, &ip4));
-        TEST(s2==get_pcp_server_by_ip(ctx, &ip6));
+    sret=get_pcp_server_by_ip(ctx, &ip6);
+    TEST(sret!=NULL);
+    TEST(si2==sret->index);
+#endif
+    sret=get_pcp_server_by_ip(ctx, &ip4);
+    TEST(sret!=NULL);
+    TEST(si1==sret->index);
 
-        pcp_db_free_pcp_servers(ctx);
+    pcp_db_free_pcp_servers(ctx);
 
-        TEST(get_pcp_server(ctx, 1)==NULL);
-        TEST(get_pcp_server(ctx, 0)==NULL);
-        TEST(get_pcp_server(ctx, -1)==NULL);
-        si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
-        TEST(si1 == 0);
-        s1=get_pcp_server(ctx, si1);
-        TEST(s1!=NULL);
-        TEST(get_pcp_server(ctx, 1)==NULL);
-        TEST((s1->af==AF_INET)&&(IN6_ARE_ADDR_EQUAL(&ip4, s1->pcp_ip)));
+    TEST(get_pcp_server(ctx, 1)==NULL);
+    TEST(get_pcp_server(ctx, 0)==NULL);
+    TEST(get_pcp_server(ctx, -1)==NULL);
+    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    TEST(si1 == 0);
+    s1=get_pcp_server(ctx, si1);
+    TEST(s1!=NULL);
+    TEST(get_pcp_server(ctx, 1)==NULL);
+    TEST(IN6_ARE_ADDR_EQUAL(&ip4, (struct in6_addr*)s1->pcp_ip));
 
-        si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
-        TEST(si2 == 1);
-        s2=get_pcp_server(ctx, si2);
-        TEST(s2!=NULL);
-        TEST((s2->af==AF_INET6)&&(IN6_ARE_ADDR_EQUAL(&ip6, s2->pcp_ip)));
-        TEST(get_pcp_server(ctx, 5)==NULL);
-
-        TEST(pcp_db_foreach_server(NULL, NULL, NULL)==PCP_ERR_BAD_ARGS);
-        TEST(pcp_db_foreach_server(ctx, NULL, NULL)==PCP_ERR_BAD_ARGS);
-        TEST(pcp_db_foreach_server(ctx, ret_0_func, NULL)==PCP_ERR_MAX_SIZE);
-        TEST(pcp_db_foreach_server(ctx, ret_1_func, NULL)==0);
+#ifdef PCP_USE_IPV6_SOCKET
+    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
+    TEST(si2 == 1);
+    s2=get_pcp_server(ctx, si2);
+    TEST(s2!=NULL);
+    TEST((s2->af==AF_INET6)&&(IN6_ARE_ADDR_EQUAL(&ip6, (struct in6_addr*)s2->pcp_ip)));
+    TEST(get_pcp_server(ctx, 5)==NULL);
+#endif
+    TEST(pcp_db_foreach_server(NULL, NULL, NULL)==PCP_ERR_BAD_ARGS);
+    TEST(pcp_db_foreach_server(ctx, NULL, NULL)==PCP_ERR_BAD_ARGS);
+    TEST(pcp_db_foreach_server(ctx, ret_0_func, NULL)==PCP_ERR_MAX_SIZE);
+    TEST(pcp_db_foreach_server(ctx, ret_1_func, NULL)==0);
 }
 
 int ret_func(pcp_flow_t* f, void*data)
@@ -156,7 +164,7 @@ void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     TEST(pcp_db_add_flow(f2)== PCP_ERR_SUCCESS);
     TEST(f2->key_bucket==f1->key_bucket);
 
-    f2->pcp_msg_buffer=malloc(10);
+    f2->pcp_msg_buffer=(char*)malloc(10);
     f2->pcp_msg_len = 10;
     TEST(pcp_db_rem_flow(f2)==PCP_ERR_SUCCESS);
     TEST(pcp_db_rem_flow(f2)!=PCP_ERR_SUCCESS);
@@ -169,11 +177,11 @@ void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     TEST(pcp_get_flow(&fkd2, get_pcp_server(ctx, 0))==f3);
 
     pcp_flow_clear_msg_buf(NULL);
-    f3->pcp_msg_buffer=malloc(10);
+    f3->pcp_msg_buffer=(char*)malloc(10);
     f3->pcp_msg_len = 10;
     pcp_flow_clear_msg_buf(f3);
     TEST((f3->pcp_msg_len==0)&&(f3->pcp_msg_buffer==NULL));
-    f3->pcp_msg_buffer=malloc(10);
+    f3->pcp_msg_buffer=(char*)malloc(10);
     f3->pcp_msg_len = 10;
 
     TEST(pcp_delete_flow_intern(f3)==PCP_ERR_SUCCESS);
@@ -210,11 +218,14 @@ void test_pcp_flow_funcs(pcp_ctx_t *ctx)
 int main()
 {
     pcp_ctx_t *ctx;
+    PD_SOCKET_STARTUP();
     pcp_log_level = PCP_DEBUG_NONE;
     ctx = pcp_init(0, NULL);
+    TEST(ctx!=NULL);
     test_pcp_server_functions(ctx);
     test_pcp_flow_funcs(ctx);
 
+    PD_SOCKET_CLEANUP();
     printf("Tests succeeded.\n\n");
     return 0;
 }

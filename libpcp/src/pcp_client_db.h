@@ -60,7 +60,7 @@ typedef struct {
 } md_val_t;
 #endif
 
-#define FLOW_HASH_BITS 8
+#define FLOW_HASH_BITS 5
 #define FLOW_HASH_SIZE (2<<FLOW_HASH_BITS)
 
 struct flow_key_data {

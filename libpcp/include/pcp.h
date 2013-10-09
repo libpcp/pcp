@@ -90,18 +90,18 @@ typedef struct pcp_location_option *pcp_location_option_p;
 
 /* DEBUG levels */
 typedef enum {
-    PCP_DEBUG_NONE  = 0,
-#define PCP_DEBUG_NONE  0
-    PCP_DEBUG_ERR,
-#define PCP_DEBUG_ERR   1
-    PCP_DEBUG_WARN,
-#define PCP_DEBUG_WARN  2
-    PCP_DEBUG_INFO,
-#define PCP_DEBUG_INFO  3
-    PCP_DEBUG_PERR,
-#define PCP_DEBUG_PERR  4
-    PCP_DEBUG_DEBUG
-#define PCP_DEBUG_DEBUG 5
+    PCP_DEBUG_NONE = 0,
+#define PCP_DEBUG_NONE  PCP_DEBUG_NONE
+    PCP_DEBUG_ERR = 1,
+#define PCP_DEBUG_ERR   PCP_DEBUG_ERR
+    PCP_DEBUG_WARN = 2,
+#define PCP_DEBUG_WARN  PCP_DEBUG_WARN
+    PCP_DEBUG_INFO = 3,
+#define PCP_DEBUG_INFO  PCP_DEBUG_INFO
+    PCP_DEBUG_PERR = 4,
+#define PCP_DEBUG_PERR  PCP_DEBUG_PERR
+    PCP_DEBUG_DEBUG = 5
+#define PCP_DEBUG_DEBUG PCP_DEBUG_DEBUG
 } pcp_debug_mode_t;
 
 typedef enum {

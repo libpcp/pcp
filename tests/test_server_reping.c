@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     pcp_ctx_t *ctx;
 
     PD_SOCKET_STARTUP();
-    pcp_log_level = 5;
+    pcp_log_level = PCP_DEBUG_DEBUG;
 
     printf("\n");
     printf("#############################################\n");
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     TEST(s->server_state == pss_wait_ping_resp);
     s->server_state = pss_not_working;
     sleep(1);
-    TEST( pcp_wait(flow, 7000, 0) == pcp_state_succeeded);
+    TEST( pcp_wait(flow, 9000, 0) == pcp_state_succeeded);
 
     TEST(s->server_state == pss_wait_io);
     pcp_terminate(ctx, 1);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     pcp_db_add_flow(flow);
 
     sleep(1);
-    TEST( pcp_wait(flow, 7000, 0) == pcp_state_succeeded);
+    TEST( pcp_wait(flow, 9000, 0) == pcp_state_succeeded);
 
     printf("Server state %d\n", s->server_state);
     TEST(s->server_state == pss_wait_io);

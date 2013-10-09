@@ -60,7 +60,7 @@ findsaddr(register const struct sockaddr_in *to,
 {
     const char *errstr;
     struct sockaddr_in cto, cfrom;
-    int s;
+    PCP_SOCKET s;
     socklen_t len;
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -97,20 +97,31 @@ err:
     /* No error (string) to return. */
     return (errstr);
 }
-
+#include <stdio.h>
 const char *
 findsaddr6(register const struct sockaddr_in6 *to,
     register struct in6_addr *from)
 {
     const char *errstr;
     struct sockaddr_in6 cto, cfrom;
-    int s;
+    PCP_SOCKET s;
     socklen_t len;
+    uint32_t sock_flg=0;
+
+    if(IN6_IS_ADDR_LOOPBACK(&to->sin6_addr)) {
+        memcpy(from, &to->sin6_addr, sizeof(struct in6_addr));
+        return NULL;
+    }
 
     s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s == -1) //LCOV_EXCL_START
         return ("failed to open DGRAM socket for src addr selection.");
     //LCOV_EXCL_STOP
+
+    //Enable Dual-stack socket for Vista and higher
+    setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&sock_flg,
+        sizeof(sock_flg));
+
     errstr = NULL;
     len = sizeof(struct sockaddr_in6);
     memcpy(&cto, to, len);
@@ -124,6 +135,7 @@ findsaddr6(register const struct sockaddr_in6 *to,
         errstr = "failed to get socket name for src addr selection."; //LCOV_EXCL_START
         goto err;
     }  //LCOV_EXCL_STOP
+
 
     if (len != sizeof(struct sockaddr_in6) || cfrom.sin6_family != AF_INET6) {//LCOV_EXCL_START
         errstr = "unexpected address family in src addr selection.";

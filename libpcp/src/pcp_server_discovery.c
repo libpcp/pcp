@@ -62,14 +62,15 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
     memset(&s->pcp_server_saddr,0,sizeof(s->pcp_server_saddr));
     memset(&src_ip,0,sizeof(src_ip));
 
-    s->pcp_server_saddr.ss_family = s->af;
+#ifndef PCP_USE_IPV6_SOCKET
+    s->pcp_server_saddr.ss_family = AF_INET;
     if (s->af == AF_INET) {
         ((struct sockaddr_in*)
         &s->pcp_server_saddr)->sin_addr.s_addr = s->pcp_ip[3];
         ((struct sockaddr_in*)
         &s->pcp_server_saddr)->sin_port = s->pcp_port;
 
-        inet_ntop(s->af,
+        inet_ntop(AF_INET,
                 (void*)&((struct sockaddr_in*) &s->pcp_server_saddr)->sin_addr,
                 s->pcp_server_paddr, sizeof(s->pcp_server_paddr));
 
@@ -88,29 +89,39 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         s->src_ip[2] = htonl(0xFFFF);
         s->src_ip[3] = S6_ADDR32(&src_ip)[3];
     } else {
-        pcp_fill_sockaddr((struct sockaddr*)&s->pcp_server_saddr,
-                (struct in6_addr *)&s->pcp_ip, s->pcp_port);
-
-        inet_ntop(s->af,
-                (void*)&((struct sockaddr_in6*) &s->pcp_server_saddr)->sin6_addr,
-                s->pcp_server_paddr, sizeof(s->pcp_server_paddr));
-
-        err = findsaddr6((struct sockaddr_in6*)&s->pcp_server_saddr, &src_ip);
-
-        if (err) {
             PCP_LOGGER(PCP_DEBUG_WARN,
-                    "Error (%s) occurred while registering a new "
-                            "PCP server %s", err, s->pcp_server_paddr);
+                    "IPv6 is disabled and IPv6 address of PCP server occured");
 
             PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-            return PCP_ERR_UNKNOWN;
-        }
-        s->src_ip[0]=S6_ADDR32(&src_ip)[0];
-        s->src_ip[1]=S6_ADDR32(&src_ip)[1];
-        s->src_ip[2]=S6_ADDR32(&src_ip)[2];
-        s->src_ip[3]=S6_ADDR32(&src_ip)[3];
+            return PCP_ERR_BAD_AFINET;
     }
+#else //PCP_USE_IPV6_SOCKET
+    s->pcp_server_saddr.ss_family = AF_INET6;
+    if (s->af == AF_INET) {
+            return PCP_ERR_BAD_AFINET; //should never happen
+    }
+    pcp_fill_sockaddr((struct sockaddr*)&s->pcp_server_saddr,
+            (struct in6_addr *)&s->pcp_ip, s->pcp_port, 1);
 
+    inet_ntop(AF_INET6,
+            (void*)&((struct sockaddr_in6*) &s->pcp_server_saddr)->sin6_addr,
+            s->pcp_server_paddr, sizeof(s->pcp_server_paddr));
+
+    err = findsaddr6((struct sockaddr_in6*)&s->pcp_server_saddr, &src_ip);
+
+    if (err) {
+        PCP_LOGGER(PCP_DEBUG_WARN,
+                "Error (%s) occurred while registering a new "
+                        "PCP server %s", err, s->pcp_server_paddr);
+
+        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+        return PCP_ERR_UNKNOWN;
+    }
+    s->src_ip[0]=S6_ADDR32(&src_ip)[0];
+    s->src_ip[1]=S6_ADDR32(&src_ip)[1];
+    s->src_ip[2]=S6_ADDR32(&src_ip)[2];
+    s->src_ip[3]=S6_ADDR32(&src_ip)[3];
+#endif //PCP_USE_IPV6_SOCKET
     s->server_state = pss_ping;
     s->next_timeout.tv_sec = 0;
     s->next_timeout.tv_usec = 0;
@@ -127,20 +138,17 @@ void psd_add_gws(pcp_ctx_t *ctx)
     gw = gws;
 
     for (; rcount > 0; rcount--) {
-        int af;
         int pcps_indx;
 
-        af = IN6_IS_ADDR_V4MAPPED(gw) ? AF_INET: AF_INET6;
-
-        if ((af==AF_INET) && (S6_ADDR32(gw)[3]==INADDR_ANY))
-            continue;
-
-        if ((af==AF_INET6) && (IN6_IS_ADDR_UNSPECIFIED(gw)))
+        if (((IN6_IS_ADDR_V4MAPPED(gw)) &&
+             (S6_ADDR32(gw)[3]==INADDR_ANY)) ||
+            (IN6_IS_ADDR_UNSPECIFIED(gw)))
             continue;
 
         if (get_pcp_server_by_ip(ctx, gw)) {
             continue;
         }
+
         pcps_indx = pcp_new_server(ctx, gw, ntohs(PCP_SERVER_PORT));
         if (pcps_indx >= 0) {
             pcp_server_t *s = get_pcp_server(ctx, pcps_indx);
@@ -206,7 +214,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t* ctx, struct sockaddr* sa, uint8_t versio
             pcps->pcp_server_paddr);
 
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-        return pcps->index;
+        return (pcp_errno)pcps->index;
     } else {
         PCP_LOGGER(PCP_DEBUG_INFO, "Failed to add PCP server %s",
             pcps->pcp_server_paddr);

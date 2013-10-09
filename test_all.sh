@@ -28,7 +28,7 @@ return 0
 CURRENT_DIR=$(pwd)
 BIN_PATH=$CURRENT_DIR/build/bin/Debug
 PATH_SCRIPT=tests
-PATH=$PATH:$BIN_PATH
+PATH=$PATH:$BIN_PATH:$CURRENT_DIR/win_utils
 
 echo "" > $CURRENT_DIR/test_results.txt
 echo "" > $CURRENT_DIR/TEMP.tmp

@@ -135,7 +135,6 @@ PCP_SOCKET createPCPsocket(char* serverPort, char* serverAddress)
         }
 
         // lose the pesky "address already in use" error message
-        //setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(int));
         setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&yes, sizeof(int));
 
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == PCP_SOCKET_ERROR) { //LCOV_EXCL_START
@@ -451,7 +450,7 @@ int printPCPreq(void * req, int req_size, options_occur_t *opt_occ,
     DUPPRINT(log_file, "PCP requested lifetime:  %d\n",
                                               htonl( common_req->req_lifetime));
 
-    if (IN6_IS_ADDR_V4MAPPED(common_req->ip)) {
+    if (IN6_IS_ADDR_V4MAPPED((struct in6_addr*)common_req->ip)) {
         DUPPRINT(log_file,"PEER IP: \t\t %s\n",
             inet_ntop(AF_INET, &(common_req->ip[3]), s,
                     INET6_ADDRSTRLEN));
@@ -619,7 +618,7 @@ static int execPCPServer(char* serverPort, char* serverAddress,
     options_occur_t opt_occurence = { 0, 0 };
 
     char buf[PCP_MAX_LEN];
-    socklen_t addr_len;
+    socklen_t addr_len=0;
     char s[INET6_ADDRSTRLEN];
 
     struct timeval tod; //store current time of the day
@@ -665,9 +664,10 @@ static int execPCPServer(char* serverPort, char* serverAddress,
                 end_time.tv_sec = 0;
                 end_time.tv_usec = 0;
             }
+
             SET_PI_TIMEOUT(pi_timeout, end_time);
             setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
-                 &pi_timeout, sizeof(pi_timeout));
+                (char*)&pi_timeout, sizeof(pi_timeout));
         }
 
         printf("############################################\n");
@@ -793,6 +793,9 @@ int main(int argc, char *argv[])
             switch (c) {
             // assign values for long options
             case 0:
+                if (!long_options[option_index].name) {
+                    break;
+                }
 
                 if (!strcmp(long_options[option_index].name, "ear"))
                     end_after_recv = (uint8_t) atoi(optarg);

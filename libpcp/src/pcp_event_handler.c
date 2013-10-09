@@ -377,20 +377,20 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
         ret = pcp_socket_sendto(ctx, flow->pcp_msg_buffer + ret,
                 flow->pcp_msg_len - ret, MSG_DONTWAIT,
                 (struct sockaddr*)&s->pcp_server_saddr,
-                s->af==AF_INET?
-                        sizeof(struct sockaddr_in):
-                        sizeof(struct sockaddr_in6));
+                SA_LEN((struct sockaddr*)&s->pcp_server_saddr));
         if (ret == PCP_SOCKET_ERROR) { //LCOV_EXCL_START
+            int errnum;
 #ifdef WIN32
-            int wsa_error = WSAGetLastError();
-            if ( (wsa_error == EAGAIN) || (wsa_error == WSAEWOULDBLOCK) ) {
+            errnum = WSAGetLastError();
+            if ( (errnum == EAGAIN) || (errnum == WSAEWOULDBLOCK) ) {
 #else
-            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+            errnum = errno;
+            if ((errnum == EAGAIN) || (errnum == EWOULDBLOCK)) {
 #endif //WIN32
                 break;
             } else {
                 char buff[128];
-                pcp_strerror(errno, buff, sizeof(buff));
+                pcp_strerror(errnum, buff, sizeof(buff));
                 PCP_LOGGER(PCP_DEBUG_WARN, "Error (%s) occurred while sending "
                         "PCP packet to server %s", buff, s->pcp_server_paddr);
                 PCP_LOGGER_END(PCP_DEBUG_DEBUG);
@@ -421,27 +421,13 @@ static pcp_errno read_msg(pcp_ctx_t *ctx, pcp_recv_msg_t *msg)
 {
     ssize_t ret;
     socklen_t src_len = sizeof(msg->rcvd_from_addr);
-    unsigned long iMode;
 
-    OSDEP(iMode);
     memset(msg, 0, sizeof(*msg));
 
     if ((ret = pcp_socket_recvfrom(ctx, msg->pcp_msg_buffer,
             sizeof(msg->pcp_msg_buffer), MSG_DONTWAIT,
-            (struct sockaddr*) &msg->rcvd_from_addr, &src_len)) == PCP_SOCKET_ERROR) {
-
-        if ((errno==EAGAIN)||(errno==EWOULDBLOCK)) {
-            msg->pcp_msg_len = 0;
-            return PCP_ERR_WOULDBLOCK;
-        } else {
-            char err_buf[ERR_BUF_LEN];
-
-            pcp_strerror(errno, err_buf, sizeof(err_buf));
-
-            PCP_LOGGER(PCP_DEBUG_PERR, "read_msg: %s", err_buf);
-
-            return PCP_ERR_RECV_FAILED;
-        }
+            (struct sockaddr*) &msg->rcvd_from_addr, &src_len)) <0 ) {
+        return ret;
     }
 
     msg->pcp_msg_len = ret;
@@ -1308,7 +1294,7 @@ int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
 {
     pcp_recv_msg_t *msg;
     pcp_errno ret;
-    struct timeval tmp_timeout;
+    struct timeval tmp_timeout={0, 0};
 
     if (!ctx) {
         return PCP_ERR_BAD_ARGS;
@@ -1353,11 +1339,11 @@ int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
             struct hserver_iter_data param = {NULL, pcpe_io_event};
             hserver_iter(s, &param);
         }
-    } else if (ret!=PCP_ERR_WOULDBLOCK) {
+    }/* else if (ret!=PCP_ERR_WOULDBLOCK) {
        struct hserver_iter_data param = {NULL, pcpe_terminate};
        pcp_db_foreach_server(ctx, hserver_iter, &param);
        goto end;
-    }
+    }*/
 
 process_timeouts:
     {
@@ -1365,7 +1351,7 @@ process_timeouts:
         pcp_db_foreach_server(ctx, hserver_iter, &param);
     }
 
-end:
+//end:
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return (next_timeout->tv_sec*1000)+(next_timeout->tv_usec/1000);
 }
@@ -1410,10 +1396,10 @@ static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state)
     if (ctx->flow_change_cb_fun)
     {
         pcp_fill_sockaddr((struct sockaddr*)&src_addr, &flow->kd.src_ip,
-                flow->kd.map_peer.src_port);
+                flow->kd.map_peer.src_port, 0);
         if (state == pcp_state_succeeded) {
             pcp_fill_sockaddr((struct sockaddr*)&ext_addr, &flow->map_peer.ext_ip,
-                    flow->map_peer.ext_port);
+                    flow->map_peer.ext_port, 0);
         } else {
             pcp_server_t *s = get_pcp_server(ctx, flow->pcp_server_indx);
             memset(&ext_addr,0,sizeof(ext_addr));

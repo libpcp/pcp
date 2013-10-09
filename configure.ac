@@ -162,6 +162,16 @@ AC_DEFINE([PCP_EXPERIMENTAL],1,[enable experimental PCP options support])
 fi
 AM_CONDITIONAL([PCP_EXPERIMENTAL],[test "x$enable_experimental" = "xyes"])
 
+AC_ARG_ENABLE([ipv6],
+              [AS_HELP_STRING([--disable-ipv6],[disable use of IPv6 socket])],
+              [enable_ipv6=${enableval}],
+              [enable_ipv6="yes"])
+
+if test "x$enable_ipv6" = "xyes" ; then
+AC_DEFINE([PCP_USE_IPV6_SOCKET],1,[use IPv6 socket])
+fi
+AM_CONDITIONAL([PCP_USE_IPV6_SOCKET],[test "x$enable_ipv6" = "xyes"])
+
 AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE([silent-rules],
