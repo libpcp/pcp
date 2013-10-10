@@ -854,9 +854,8 @@ int main(int argc, char *argv[])
                 break;
             case 'r':
                 default_result_code = (uint8_t) atoi(optarg);
-                if (default_result_code < 0
-                        || (default_result_code > 13
-                                && default_result_code != 255)) {
+                if (default_result_code > 13
+                                && default_result_code != 255) {
                     printf(
                             "Unsupported  RESULT CODE %d (acceptable values "
                             "0 <= result_code <= 13 or result_code == 255)\n",
