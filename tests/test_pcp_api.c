@@ -38,8 +38,10 @@ int main()
     TEST(get_pcp_server(ctx, 0)==NULL);
 
     ctx = pcp_init(DISABLE_AUTODISCOVERY, NULL);
-    TEST(pcp_add_server(ctx, Sock_pton("[::1]:5351"), 1)==0);
-    TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==1);
+    TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);
+#ifdef PCP_USE_IPV6_SOCKET
+    TEST(pcp_add_server(ctx, Sock_pton("[::1]:5351"), 1)==1);
+#endif
     pcp_terminate(ctx, 1);
 
 #ifdef PCP_SADSCP
@@ -80,10 +82,9 @@ int main()
     TEST(pcp_new_flow(NULL, NULL, NULL, NULL, 0, 0, NULL)==NULL);
     TEST(pcp_new_flow(ctx, NULL, NULL, NULL, 0, 0, NULL)==NULL);
 
-    TEST(pcp_add_server(ctx, Sock_pton("[::1]:5351"), 1)==1);
-    TEST((f1=pcp_new_flow(ctx, Sock_pton("[::1]:1234"), Sock_pton("[::1]"), NULL,
+    TEST((f1=pcp_new_flow(ctx, Sock_pton("127.0.0.1:1234"), Sock_pton("127.0.0.1"), NULL,
             IPPROTO_TCP, 100, NULL))!=NULL);
-    TEST((f2=pcp_new_flow(ctx, Sock_pton("[::1]:1234"), NULL, NULL,
+    TEST((f2=pcp_new_flow(ctx, Sock_pton("127.0.0.1:1234"), NULL, NULL,
             IPPROTO_TCP, 100, NULL))!=NULL);
     pcp_flow_set_prefer_failure_opt(f2);
     pcp_flow_set_prefer_failure_opt(f2);

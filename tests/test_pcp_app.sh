@@ -89,24 +89,27 @@ pcp -s 8.8.8.2 --pcp-version 2 --fast-return -i :1234 --timeout 0 &>/dev/null
 
 [ $? -eq 2 ] || echo_exit "Failed in timeout test."
 
-pcp-server --ip ::1 -v 1 --ear 2 &>/dev/null &
+if [ "$PCP_USE_IPV6_SOCKET" == "1" ] ; then
+  echo "Testing IPv6 support"
+  pcp-server --ip ::1 -v 1 --ear 2 &>/dev/null &
 
-sleep 0.1
-pcp --pcp-version 2 --server ::1 --internal [::]:1234 --peer [::]:4321 --fast-return &>/dev/null
+  sleep 0.1
+  pcp --pcp-version 2 --server ::1 --internal [::]:1234 --peer [::]:4321 --fast-return &>/dev/null
 
-[ $? -eq 0 ] || echo_exit "Failed in IPv6 MAP success test."
+  [ $? -eq 0 ] || echo_exit "Failed in IPv6 MAP success test."
 
-pcp-server --ip ::1 -v 1 --ear 2 &>/dev/null &
+  pcp-server --ip ::1 -v 1 --ear 2 &>/dev/null &
 
-sleep 0.1
-pcp --pcp-version 2 -s ::1 -i [::]:1234 -p [::1]:1234 &>/dev/null
+  sleep 0.1
+  pcp --pcp-version 2 -s ::1 -i [::]:1234 -p [::1]:1234 &>/dev/null
 
-[ $? -eq 0 ] || echo_exit "Failed in IPv6 PEER success test."
+  [ $? -eq 0 ] || echo_exit "Failed in IPv6 PEER success test."
 
-sleep 0.1
-pcp --pcp-version 2 -i [::]:1234 -p [::1]:4321 &>/dev/null
+  sleep 0.1
+  pcp --pcp-version 2 -i [::]:1234 -p [::1]:4321 &>/dev/null
 
-[ $? -gt 0 ] || echo_exit "Failed in IPv6 PEER failure test."
+  [ $? -gt 0 ] || echo_exit "Failed in IPv6 PEER failure test."
+fi
 
 killall pcp-server &>/dev/null
 pcp-server --ear 1 &>/dev/null &

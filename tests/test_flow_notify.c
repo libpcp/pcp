@@ -152,6 +152,7 @@ int main(int argc, char *argv[]) {
     pcp_terminate(ctx, 0);
     sleep(1);
 
+#ifdef PCP_USE_IPV6_SOCKET
     ctx = pcp_init(0, NULL);
     pcp_add_server(ctx, Sock_pton("[::1]:5351"), 2);
 
@@ -170,6 +171,7 @@ int main(int argc, char *argv[]) {
 
     ret = ret || select_loop(ctx);
     pcp_terminate(ctx, 0);
+#endif
 
     PD_SOCKET_CLEANUP();
 

@@ -157,11 +157,13 @@ PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int pr
             uint32_t flg;
 #ifdef WIN32
             unsigned long iMode = 1;
+            OSDEP(flg);
             ioctlsocket(s, FIONBIO, &iMode);
 #else
             flg = fcntl(s, F_GETFL, 0);
             fcntl(s, F_SETFL, flg | O_NONBLOCK);
 #endif
+#ifdef PCP_USE_IPV6_SOCKET
             flg = 0;
             if (PCP_SOCKET_ERROR == setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
                 (char*)&flg, sizeof(flg))) {
@@ -171,6 +173,7 @@ PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int pr
                 CLOSE(s);
                 return PCP_INVALID_SOCKET;
             }
+#endif //PCP_USE_IPV6_SOCKET
         }
         while (bind(s, (struct sockaddr*)&sas, SA_LEN((struct sockaddr*) &sas))
             == PCP_SOCKET_ERROR) {

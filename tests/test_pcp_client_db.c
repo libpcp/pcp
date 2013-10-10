@@ -30,7 +30,10 @@ int ret_1_func(pcp_server_t *f, void* data)
 
 void test_pcp_server_functions(pcp_ctx_t *ctx)
 {
-    struct in6_addr ip4, ip6;
+    struct in6_addr ip4;
+#ifdef PCP_USE_IPV6_SOCKET
+    struct in6_addr ip6;
+#endif
     pcp_server_t *s1=NULL, *s2=NULL;
     pcp_server_t* sret;
     int si1, si2;

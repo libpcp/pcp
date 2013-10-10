@@ -89,7 +89,7 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         s->src_ip[2] = htonl(0xFFFF);
         s->src_ip[3] = S6_ADDR32(&src_ip)[3];
     } else {
-            PCP_LOGGER(PCP_DEBUG_WARN,
+            PCP_LOGGER(PCP_DEBUG_WARN, "%s",
                     "IPv6 is disabled and IPv6 address of PCP server occured");
 
             PCP_LOGGER_END(PCP_DEBUG_DEBUG);
@@ -216,6 +216,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t* ctx, struct sockaddr* sa, uint8_t versio
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return (pcp_errno)pcps->index;
     } else {
+        pcps->server_state = pss_unitialized;
         PCP_LOGGER(PCP_DEBUG_INFO, "Failed to add PCP server %s",
             pcps->pcp_server_paddr);
 

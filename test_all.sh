@@ -33,6 +33,7 @@ PATH=$PATH:$BIN_PATH:$CURRENT_DIR/win_utils
 echo "" > $CURRENT_DIR/test_results.txt
 echo "" > $CURRENT_DIR/TEMP.tmp
 
+export PCP_USE_IPV6_SOCKET=0
 
 $PATH_SCRIPT/test_flow_notify.sh
 Get_Status $? "test_flow_notify           "

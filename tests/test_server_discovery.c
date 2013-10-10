@@ -42,8 +42,11 @@ int main(int argc, char* argv[])
     pcp_flow_t* f;
     pcp_fstate_e ret;
     pcp_server_t *s;
-    int sindx, sindx1, sindx2;
+    int sindx, sindx1;
+#ifdef PCP_USE_IPV6_SOCKET
+    int sindx2;
     struct sockaddr_in6 src6;
+#endif
     struct sockaddr_in src4, dst4;
     struct sockaddr *src = NULL;
     struct sockaddr *dst = NULL;
@@ -58,7 +61,9 @@ int main(int argc, char* argv[])
     TEST((sindx1=pcp_add_server(ctx, Sock_pton("100.2.1.1:5351"), 1))>=0);
     TEST((sindx=pcp_add_server(ctx, Sock_pton("100.2.1.1:5351"),PCP_MAX_SUPPORTED_VERSION)) == sindx1);
     TEST(pcp_add_server(ctx, Sock_pton("100.2.1.1"),PCP_MAX_SUPPORTED_VERSION+1)<0);
+#ifdef PCP_USE_IPV6_SOCKET
     TEST((sindx2=pcp_add_server(ctx, Sock_pton("[::1]:5350"),PCP_MAX_SUPPORTED_VERSION))>=0);
+#endif
     s= get_pcp_server(ctx, sindx);
     TEST(s!=NULL);
 
@@ -72,6 +77,7 @@ int main(int argc, char* argv[])
     src = (struct sockaddr*) &src4;
     dst = (struct sockaddr*) &dst4;
     f = pcp_new_flow(ctx, src, dst, NULL, IPPROTO_TCP, 600,NULL);
+#ifdef PCP_USE_IPV6_SOCKET
     s= get_pcp_server(ctx, sindx2);
     s->af=AF_UNSPEC;
     memset(&src6, 0, sizeof(src6));
@@ -80,6 +86,7 @@ int main(int argc, char* argv[])
     src6.sin6_port = htons(1234);
     src = (struct sockaddr*) &src6;
     f = pcp_new_flow(ctx, src, dst, NULL, IPPROTO_TCP, 600, NULL);
+#endif
     ret = pcp_wait(f, 13000, 1);
     pcp_logger(PCP_DEBUG_INFO, "1st wait finished with result: %d\n", ret);
 

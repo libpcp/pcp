@@ -56,7 +56,12 @@ EXTRA_DIST = tests/test_flow_notify.sh \
              scapy/README.md \
              COPYING
 
-TESTS_ENVIRONMENT=PATH=pcp_app/:pcp_server/:libpcp/:tests/:$(PATH)
+if PCP_USE_IPV6_SOCKET
+DPCP_USE_IPV6_SOCKET=1
+endif
+
+TESTS_ENVIRONMENT = PATH=pcp_app/:pcp_server/:libpcp/:tests/:$(PATH)\
+                    PCP_USE_IPV6_SOCKET=$(DPCP_USE_IPV6_SOCKET)
 
 if PCP_EXPERIMENTAL
 PCP_EXPERIMENTAL_TESTS = tests/test_flow_md.sh
