@@ -56,7 +56,7 @@
 #include <ws2ipdef.h>
 #include <Iphlpapi.h>
 #include <ws2tcpip.h>
-
+#include "pcp_win_defines.h"
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -121,7 +121,7 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pI
     do{
         /* Receive response from the kernel */
         readLen = recv(sockFd, bufPtr, BUFSIZE - msgLen, 0);
-        if(readLen == PCP_SOCKET_ERROR){ //LCOV_EXCL_START
+        if(readLen == -1){ //LCOV_EXCL_START
             perror("SOCK READ: ");
             return -1;
         }//LCOV_EXCL_STOP
@@ -132,7 +132,7 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pI
         if ((NLMSG_OK(nlHdr, (unsigned)readLen) == 0) ||//LCOV_EXCL_START
             (nlHdr->nlmsg_type == NLMSG_ERROR))
         {
-            perror("Error in recieved packet");
+            perror("Error in received packet");
             return -1;
         }//LCOV_EXCL_STOP
 
@@ -162,10 +162,9 @@ int getgateways(struct in6_addr ** gws)
 
     int sock, msgSeq = 0;
     ssize_t len;
-    uint32_t rtCount;
+    int ret;
 
     if (!gws) {
-
         return PCP_ERR_BAD_ARGS;
     }
 
@@ -192,62 +191,73 @@ int getgateways(struct in6_addr ** gws)
 
     /* Send the request */
     len = send(sock, nlMsg, nlMsg->nlmsg_len, 0);
-    if(len == PCP_SOCKET_ERROR){ //LCOV_EXCL_START
+    if(len == -1){ //LCOV_EXCL_START
         printf("Write To Socket Failed...\n");
-        return PCP_ERR_UNKNOWN;
+        ret=PCP_ERR_SEND_FAILED;
+        goto end;
     } //LCOV_EXCL_STOP
 
     /* Read the response */
     len = readNlSock(sock, msgBuf, msgSeq, getpid());
     if(len < 0) { //LCOV_EXCL_START
         printf("Read From Socket Failed...\n");
-        return PCP_ERR_UNKNOWN;
+        ret=PCP_ERR_RECV_FAILED;
+        goto end;
     } //LCOV_EXCL_STOP
     /* Parse and print the response */
-    rtCount = 0;
+    ret = 0;
 
-    for(;NLMSG_OK(nlMsg,(unsigned)len);nlMsg = NLMSG_NEXT(nlMsg,len)){
-        {
-            struct rtmsg *rtMsg;
-            struct rtattr *rtAttr;
-            int rtLen;
-            rtMsg = (struct rtmsg *)NLMSG_DATA(nlMsg);
+    for(;NLMSG_OK(nlMsg,(unsigned)len);nlMsg = NLMSG_NEXT(nlMsg,len)) {
+        struct rtmsg *rtMsg;
+        struct rtattr *rtAttr;
+        int rtLen;
+        rtMsg = (struct rtmsg *)NLMSG_DATA(nlMsg);
 
-            /* If the route is not for AF_INET(6) or does not belong to main
-               routing table then return. */
-            if(((rtMsg->rtm_family != AF_INET) &&
-                    (rtMsg->rtm_family != AF_INET6))
-                    || (rtMsg->rtm_table != RT_TABLE_MAIN)) {
+        /* If the route is not for AF_INET(6) or does not belong to main
+           routing table then return. */
+        if(((rtMsg->rtm_family != AF_INET) &&
+                (rtMsg->rtm_family != AF_INET6))
+                || (rtMsg->rtm_table != RT_TABLE_MAIN)) {
+            continue;
+        }
+
+        /* get the rtattr field */
+        rtAttr = (struct rtattr *)RTM_RTA(rtMsg);
+        rtLen = RTM_PAYLOAD(nlMsg);
+        for(;RTA_OK(rtAttr,rtLen);rtAttr = RTA_NEXT(rtAttr,rtLen)){
+            size_t rtaLen = RTA_PAYLOAD(rtAttr);
+            if (rtaLen>sizeof(struct in6_addr)){
                 continue;
             }
-
-            /* get the rtattr field */
-            rtAttr = (struct rtattr *)RTM_RTA(rtMsg);
-            rtLen = RTM_PAYLOAD(nlMsg);
-            for(;RTA_OK(rtAttr,rtLen);rtAttr = RTA_NEXT(rtAttr,rtLen)){
-                size_t rtaLen = RTA_PAYLOAD(rtAttr);
-                if (rtaLen>sizeof(struct in6_addr)){
-                    continue;
-                }
-                if (rtAttr->rta_type == RTA_GATEWAY) {
-                    *gws = (struct in6_addr*)
-                        realloc(*gws, sizeof(struct in6_addr)*(rtCount+1));
-
-                    memset(*gws+rtCount, 0, sizeof(struct in6_addr));
-
-                    memcpy((*gws)+rtCount, RTA_DATA(rtAttr), rtaLen);
-
-                    if (rtMsg->rtm_family == AF_INET) {
-                        TO_IPV6MAPPED(((*gws)+rtCount));
+            if (rtAttr->rta_type == RTA_GATEWAY) {
+                struct in6_addr* tmp_gws;
+                tmp_gws = (struct in6_addr*)
+                    realloc(*gws, sizeof(struct in6_addr)*(ret+1));
+                if (!tmp_gws) {
+                    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Error allocating memory");
+                    if (*gws) {
+                      free(*gws);
+                      *gws=NULL;
                     }
-                    rtCount++;
+                    ret=PCP_ERR_NO_MEM;
+                    goto end;
                 }
+                *gws=tmp_gws;
+                memset(*gws+ret, 0, sizeof(struct in6_addr));
+                memcpy(*gws+ret, RTA_DATA(rtAttr), rtaLen);
 
+                if (rtMsg->rtm_family == AF_INET) {
+                    TO_IPV6MAPPED(((*gws)+ret));
+                }
+                ret++;
             }
         }
     }
-    close(sock);
-    return rtCount;
+end:
+    if (close(sock)) {
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Close socket error");
+    }
+    return ret;
 }
 
 #endif /* #ifdef USE_NETLINK */
@@ -256,24 +266,29 @@ int getgateways(struct in6_addr ** gws)
 #if defined (USE_WIN32_CODE) && defined(WIN32)
 
 #if 0 // WINVER>=NTDDI_VISTA
-int getgateways(struct in6_addr ** gws)
+int getgateways(struct in6_addr **gws)
 {
     PMIB_IPFORWARD_TABLE2 ipf_table;
     unsigned int i;
 
-    if (gws == NULL) {
-        return -1;
+    if (!gws) {
+      return PCP_ERR_UNKNOWN;
     }
 
     if (GetIpForwardTable2(AF_UNSPEC, &ipf_table)!=NO_ERROR) {
-        return -1;
+      return PCP_ERR_UNKNOWN;
     }
 
     if (!ipf_table) {
-        return -1;
+      return PCP_ERR_UNKNOWN;
     }
 
     *gws =(struct in6_addr*)calloc(ipf_table->NumEntries, sizeof(struct in6_addr));
+    if (*gws) {
+      PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory");
+      return PCP_ERR_NO_MEM;
+    }
+
     for (i=0; i<ipf_table->NumEntries; ++i) {
         if (ipf_table->Table[i].NextHop.si_family == AF_INET) {
             S6_ADDR32((*gws)+i)[0] = ipf_table->Table[i].NextHop.Ipv4.sin_addr.s_addr;
@@ -288,58 +303,97 @@ int getgateways(struct in6_addr ** gws)
     return i;
 }
 #else
-int getgateways(struct in6_addr ** gws)
+int getgateways(struct in6_addr **gws)
 {
     PMIB_IPFORWARDTABLE ipf_table;
     DWORD ipft_size = 0;
-    int i = -1;
+    int i, ret;
 
-    if (gws == NULL) {
-        return -1;
+    if (!gws) {
+        return PCP_ERR_UNKNOWN;
     }
 
     ipf_table =
         (MIB_IPFORWARDTABLE *) malloc(sizeof (MIB_IPFORWARDTABLE));
-    if (ipf_table == NULL) {
-        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
-        return -1;
+    if (!ipf_table) {
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory");
+        ret=PCP_ERR_NO_MEM;
+        goto end;
     }
 
-    if (GetIpForwardTable(ipf_table, &ipft_size, 0) ==
-        ERROR_INSUFFICIENT_BUFFER) {
-        void* store_pointer = ipf_table;
-        ipf_table = (MIB_IPFORWARDTABLE *) realloc(ipf_table, ipft_size);
-        if (ipf_table == NULL) {
-            if (ipft_size)
-                free(store_pointer);
-            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
-            return -1;
+    if (GetIpForwardTable(ipf_table,&ipft_size,0) == ERROR_INSUFFICIENT_BUFFER){
+        MIB_IPFORWARDTABLE *new_ipf_table;
+        new_ipf_table = (MIB_IPFORWARDTABLE *) realloc(ipf_table, ipft_size);
+        if (!new_ipf_table) {
+            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory");
+            ret=PCP_ERR_NO_MEM;
+            goto end;
         }
+        ipf_table = new_ipf_table;
     }
 
-    if (GetIpForwardTable(ipf_table, &ipft_size, 0) == NO_ERROR) {
-        *gws =(struct in6_addr*)calloc(ipf_table->dwNumEntries, sizeof(struct in6_addr));
-        if (!*gws) {
-            PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory\n");
-            return -1;
-        }
-        for (i = 0; i < (int) ipf_table->dwNumEntries; i++) {
-            if (ipf_table->table[i].ForwardType == MIB_IPROUTE_TYPE_INDIRECT) {
-                S6_ADDR32((*gws)+i)[0] = (uint32_t) ipf_table->table[i].dwForwardNextHop;
-                TO_IPV6MAPPED(((*gws)+i));
-            }
-        }
-    } else {
-        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "GetIpForwardTable failed.\n");
+    if (GetIpForwardTable(ipf_table, &ipft_size, 0) != NO_ERROR) {
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "GetIpForwardTable failed.");
+        ret=PCP_ERR_UNKNOWN;
+        goto end;
     }
-    free(ipf_table);
-    return i;
+
+    *gws =(struct in6_addr*)calloc(ipf_table->dwNumEntries, sizeof(struct in6_addr));
+    if (!*gws) {
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "%s", "Error allocating memory");
+        ret=PCP_ERR_NO_MEM;
+        goto end;
+    }
+
+    for (ret=0,i=0; i < (int) ipf_table->dwNumEntries; i++) {
+        if (ipf_table->table[i].ForwardType == MIB_IPROUTE_TYPE_INDIRECT) {
+            S6_ADDR32((*gws)+ret)[0] = (uint32_t) ipf_table->table[i].dwForwardNextHop;
+            TO_IPV6MAPPED(((*gws)+ret));
+            ret++;
+        }
+    }
+end:
+    if (ipf_table)
+        free(ipf_table);
+
+    return ret;
 }
 #endif
 
 #endif /* #ifdef USE_WIN32_CODE */
 
 #ifdef USE_SOCKET_ROUTE
+
+struct sockaddr;
+struct in6_addr;
+
+/* This structure is used for route operations using routing sockets */
+
+/* I know I could have used sockaddr. But type casting eveywhere is nasty and error prone.
+   I do not believe a few bytes will make much impact and code will become much cleaner */
+typedef struct route_op {
+    struct sockaddr_in dst4;
+    struct sockaddr_in mask4;
+    struct sockaddr_in gw4;
+    struct sockaddr_in6 dst6;
+    struct sockaddr_in6 mask6;
+    struct sockaddr_in6 gw6;
+    char ifname[128];
+    uint16_t family;
+} route_op_t;
+
+static int
+get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family);
+
+typedef route_op_t route_in_t;
+typedef route_op_t route_out_t;
+
+
+static int route_get(in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char *ifname, route_in_t *routein, route_out_t *routeout);
+static int route_add(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *ifname, route_in_t *routein, route_out_t *routeout);
+static int route_change(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *ifname, route_in_t *routein, route_out_t *routeout);
+static int route_delete(in_addr_t dst, in_addr_t mask, route_in_t *routein, route_out_t *routeout);
+static int route_get_sa(struct sockaddr *dst, in_addr_t * mask, struct sockaddr * gateway, char *ifname, route_in_t *routein, route_out_t *routeout );
 
 static int
 find_if_with_name(const char *iface, struct sockaddr_dl *out)
@@ -628,7 +682,7 @@ end:
 #undef MAX_INDEX
 }
 
-    int
+static int
 route_get_sa(struct sockaddr *dst, in_addr_t * mask, struct sockaddr * gateway, char *ifname, route_in_t *routein, route_out_t *routeout)
 {
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -640,7 +694,7 @@ route_get_sa(struct sockaddr *dst, in_addr_t * mask, struct sockaddr * gateway, 
 #endif
 }
 
-int
+static int
 route_get(in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char iface[], route_in_t *routein, route_out_t *routeout)
 {
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -651,7 +705,7 @@ route_get(in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char iface[], 
 #endif
 }
 
-int
+static int
 route_add(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface, route_in_t *routein, route_out_t *routeout)
 {
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -662,7 +716,7 @@ route_add(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface, r
 #endif
 }
 
-int
+static int
 route_change(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface, route_in_t *routein, route_out_t *routeout)
 {
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -673,7 +727,7 @@ route_change(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface
 #endif
 }
 
-int
+static int
 route_delete(in_addr_t dst, in_addr_t mask, route_in_t *routein, route_out_t *routeout)
 {
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -690,7 +744,7 @@ route_delete(in_addr_t dst, in_addr_t mask, route_in_t *routein, route_out_t *ro
 /* We need to pass the family because an interface might have multiple addresses
    each assocaited with different family
    */
-int
+static int
 get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family)
 {
     struct ifaddrs *ifaddr, *ifa;
@@ -739,7 +793,7 @@ get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family)
 									sizeof(uint32_t)))
 
 /* thanks Stevens for this very handy function */
-void
+static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 {
 	int		i;
@@ -756,7 +810,7 @@ get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 /* Portable (hopefully) function to lookup routing tables. sysctl()'s
    advantage is that it does not need root permissions. Routing sockets
    need root permission since it is of type SOCK_RAW. */
-char *
+static char *
 net_rt_dump(int type, int family, int flags, size_t *lenp)
 {
 	int		mib[6];
@@ -785,38 +839,47 @@ net_rt_dump(int type, int family, int flags, size_t *lenp)
 
    It is up to the caller to weed out duplicates
  */
-int getgateways(struct in6_addr ** gws)
+int getgateways(struct in6_addr **gws)
 {
     char * buf, *next, *lim;
     size_t len;
-    struct rt_msghdr	*rtm;
-    struct sockaddr	*sa, *rti_info[RTAX_MAX];
+    struct rt_msghdr *rtm;
+    struct sockaddr *sa, *rti_info[RTAX_MAX];
     int rtcount = 0;
+
+    if (!gws) {
+        return PCP_ERR_UNKNOWN;
+    }
 
 
     /* net_rt_dump() will return all route entries with gateways */
     buf = net_rt_dump(NET_RT_FLAGS, 0, RTF_GATEWAY, &len);
+    if (!buf)
+      return PCP_ERR_UNKNOWN;
     lim = buf + len;
     for (next = buf; next < lim; next += rtm->rtm_msglen) {
         rtm = (struct rt_msghdr *) next;
         sa = (struct sockaddr *)(rtm + 1);
         get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
-/*        if ( (sa = rti_info[RTAX_DST]) != NULL) {
-            printf("dest: %s", sock_ntop(sa, sa->sa_len));
-        }*/
 
         if ( (sa = rti_info[RTAX_GATEWAY]) != NULL)
-//            printf(", gateway: %s \n", sock_ntop(sa, sa->sa_len));
 
             if ((rtm->rtm_addrs & (RTA_DST|RTA_GATEWAY)) == (RTA_DST|RTA_GATEWAY)) {
-                struct in6_addr *in6 = NULL;
+                struct in6_addr *in6=*gws;
 
                 *gws = (struct in6_addr*)
                     realloc(*gws, sizeof(struct in6_addr)*(rtcount + 1));
 
-                memset(*gws + rtcount, 0, sizeof(struct in6_addr));
+                if (!*gws) {
+                    if (in6)
+                        free(in6);
+                    free(buf);
+                    return PCP_ERR_NO_MEM;
+                }
 
-                in6 = (struct in6_addr *)((*gws) + rtcount);
+                in6 = (*gws) + rtcount;
+                memset(in6, 0, sizeof(struct in6_addr));
+
                 if (sa->sa_family == AF_INET) {
                     /* IPv4 gateways as returned as IPv4 mapped IPv6 addresses */
                     in6->s6_addr32[0] = ((struct sockaddr_in *)(rti_info[RTAX_GATEWAY]))->sin_addr.s_addr;
@@ -833,61 +896,4 @@ int getgateways(struct in6_addr ** gws)
     free(buf);
     return rtcount;
 }
-#endif
-
-
-#if 0
-
-Examples of routes...Local network is 10.0.1/24
-
-1 - A host in the same subnet which is up to respond to arp requests. Notice it has the
-"WASCLONED" and "HOST" flag.
-
-repenno-mac:pcp-client reinaldopenno$ route get 10.0.1.1
-   route to: 10.0.1.1
-destination: 10.0.1.1
-  interface: en1
-      flags: <UP,HOST,DONE,LLINFO,WASCLONED,IFSCOPE,IFREF>
- recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
-       0         0         0         0         0         0      1500      1109
-
-2 - A host is the same subnet which is not up to respond to arp requests. Noticed it has the
-"CLONING" flag but no HOST flag. The destination is still 10.0.1.0 (entire subnet) which
-to the following route
-
-10.0.1/24          link#5             UCS             3        0     en1
-
-repenno-mac:pcp-client reinaldopenno$ route get 10.0.1.90
-   route to: 10.0.1.90
-destination: 10.0.1.0
-       mask: 255.255.255.0
-  interface: en1
-      flags: <UP,DONE,CLONING,STATIC>
- recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
-       0         0         0         0         0         0      1500    -52784
-
-3 - A host outside the subnet on another network. There is no destination only 0.0.0.0
-and a PRCLONING
-
-repenno-mac:pcp-client reinaldopenno$ route get 8.8.8.8
-   route to: google-public-dns-a.google.com
-destination: default
-       mask: default
-    gateway: 10.0.1.1
-  interface: en1
-      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING>
- recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
-       0         0         0         0         0         0      1500         0
-repenno-mac:pcp-client reinaldopenno$
-
-PRCLONING was removed from FreeBSD
-
-http://people.freebsd.org/~andre/FreeBSD-5.3-Networking.pdf
-PRCLONING removed.
-Routing Table
-PRCLONING was previously done for two reasons. TCP stored/cached certain observations (for example RTT and RTT Variance) per remote host. For every host that has/had a TCP session with us it would create/clone a route to store these informations. Reduced rt_metrics from 14 to 3 fields and saving 11 times sizeof(u_long), on i386 44 Bytes. Most of the 11 removed fields are now in the
-tcp_hostcache (see later):
-
-
-
 #endif

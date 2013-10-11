@@ -68,8 +68,6 @@ void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_
 
     TEST(s == pcp_state_failed);
 
-    TEST(ext_addr->sa_family == AF_INET6);
-
     TEST(cb_arg==(void*)1);
 
     status =1;

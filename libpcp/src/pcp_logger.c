@@ -103,7 +103,7 @@ void pcp_logger(pcp_debug_mode_t log_level, const char* fmt, ...)
         return;
     }
 
-    if ((p = (char*) malloc(size)) == NULL) {
+    if (!(p = (char*) malloc(size))) {
         return; //LCOV_EXCL_LINE
     }
 
@@ -118,15 +118,7 @@ void pcp_logger(pcp_debug_mode_t log_level, const char* fmt, ...)
         /* If that worked, return the string. */
 
         if (n > -1 && n < size) {
-            if (logger) {
-                (*logger)(log_level, p);
-                free(p);
-                return;
-            } else {
-                printf("%s \n", p);
-                free(p);
-                return;
-            }
+            break;
         }
 
         /* Else try again with more space. */
@@ -137,21 +129,20 @@ void pcp_logger(pcp_debug_mode_t log_level, const char* fmt, ...)
             /* glibc 2.0 */
             size *= 2; /* twice the old size */  //LCOV_EXCL_LINE
 
-        if ((np = (char*) realloc(p, size)) == NULL) {
+        if (!(np = (char*) realloc(p, size))) {
             free(p);  //LCOV_EXCL_LINE
             return;   //LCOV_EXCL_LINE
-        } else {
-            p = np;
         }
+        p = np;
     }
 
+    if (logger)
+        (*logger)(log_level, p);
+
     free(p);
+    return;
 }
 
-/* Wrapper function for srerror_s and strerror_r functions */
-/* char *buf is set to zero with memset at the beginning of the function,
- *  so the contents from the previous use of the variable would be anulated */
-/* @return: Function returns bufffer buf containing error message */
 void pcp_strerror(int errnum, char *buf, size_t buflen)
 {
 
@@ -162,17 +153,7 @@ void pcp_strerror(int errnum, char *buf, size_t buflen)
     strerror_s(buf, buflen, errnum);
 
 #else //WIN32
-    //according to strerror_r man page, the XSI-compliant function is used
-    // if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
-#if ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! defined(_GNU_SOURCE))
-    {
-        strerror_r(errnum, buf, buflen);
-    }
-#else
-    {
-        strerror_r(errnum, buf, buflen);
-    }
-#endif // ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE)
+    strerror_r(errnum, buf, buflen);
 #endif //WIN32
 }
 

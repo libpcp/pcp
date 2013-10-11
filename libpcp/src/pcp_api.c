@@ -121,12 +121,8 @@ pcp_ctx_t* pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt)
         SOCK_DGRAM, 0);
 
     if (ctx->socket == PCP_INVALID_SOCKET) {         //LCOV_EXCL_START
-        char buff[128];
-
-        pcp_strerror(errno, buff, sizeof(buff));
-
-        PCP_LOGGER(PCP_DEBUG_WARN,
-                "Error (%s) occurred while creating a PCP socket.", buff);
+        PCP_LOGGER(PCP_DEBUG_WARN, "%s",
+                "Error occurred while creating a PCP socket.");
 
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return NULL;
@@ -455,36 +451,6 @@ pcp_flow_t* pcp_new_flow(
             dst_addr);
         kd.operation = PCP_OPCODE_PEER;
 
-#if 0
-// get gw
-#ifdef __APPLE__
-        memcpy(&(routein.dst4), dst_addr, sizeof(struct sockaddr_in));
-        route_get_sa(dst_addr, NULL, &gw_sock, &ifname[0], &routein, &routeout);
-        if (get_if_addr_from_name(&(routeout.ifname[0]), &ifsock, AF_INET)) {
-        //if (get_if_addr_from_name(&ifname[0], &ifsock, AF_INET)) {
-            exit(EXIT_FAILURE);
-        }
-        if (ifsock.sa_family == AF_INET) {
-            srcip.s6_addr32[3] = ((struct sockaddr_in *) &ifsock)->sin_addr.s_addr;
-            gw_ip.s6_addr32[3] = routeout.gw4.sin_addr.s_addr;
-            //gw_ip.s6_addr32[3] = ((struct sockaddr_in *) &gw_sock)->sin_addr.s_addr;
-        } else if (ifsock.sa_family == AF_INET6) {
-            srcip = ((struct sockaddr_in6 *) &ifsock)->sin6_addr;
-            gw_ip = ((struct sockaddr_in6 *) &gw_sock)->sin6_addr;
-        } else {
-            PCP_LOGGER(PCP_DEBUG_WARN, "%s", "Unknown Address Family");
-            PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-            return NULL;
-        }
-
-        gw_ip = ((struct sockaddr_in6 *) &gw_sock)->sin6_addr;
-#else
-        if (get_src_gw_for_route_to(dst_addr, &srcip, &gw_ip) < 0) {
-            PCP_LOGGER(PCP_DEBUG_WARN, "%s", "Can't get gateway to PCP server.");
-            return NULL;
-        }
-#endif
-#endif
         if (src_addr->sa_family == AF_INET) {
             if (S6_ADDR32(&src_ip)[3] == INADDR_ANY) {
                 findsaddr((struct sockaddr_in*)dst_addr, &src_ip);

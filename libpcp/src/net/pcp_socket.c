@@ -131,6 +131,32 @@ pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport,
     }
 }
 
+#ifndef PCP_SOCKET_IS_VOIDPTR
+static pcp_errno pcp_get_error() {
+#ifdef WIN32
+    int errnum = WSAGetLastError();
+    switch (errnum) {
+    case WSAEADDRINUSE:
+        return PCP_ERR_ADDRINUSE;
+    case WSAEWOULDBLOCK:
+        return PCP_ERR_WOULDBLOCK;
+    default:
+        return PCP_ERR_UNKNOWN;
+    }
+#else
+    switch (errno) {
+    case EADDRINUSE:
+        return PCP_ERR_ADDRINUSE;
+//    case EAGAIN:
+    case EWOULDBLOCK:
+        return PCP_ERR_WOULDBLOCK;
+    default:
+        return PCP_ERR_UNKNOWN;
+    }
+#endif
+}
+#endif
+
 PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int protocol)
 {
     if (ctx->virt_socket_tb.sock_create) {
@@ -139,9 +165,14 @@ PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int pr
 #ifndef PCP_SOCKET_IS_VOIDPTR
     {
         PCP_SOCKET s;
+        uint32_t flg;
+        unsigned long iMode = 1;
         struct sockaddr_storage sas;
         struct sockaddr_in* sin = (struct sockaddr_in*)&sas;
         struct sockaddr_in6* sin6 = (struct sockaddr_in6*)&sas;
+
+        OSDEP(iMode);
+        OSDEP(flg);
 
         memset(&sas, 0, sizeof(sas));
         sas.ss_family = domain;
@@ -152,47 +183,48 @@ PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int pr
         } else {
             PCP_LOGGER(PCP_DEBUG_ERR,"Unsupported socket domain:%d",domain);
         }
+
         s = (PCP_SOCKET)socket(domain, type, protocol);
-        {
-            uint32_t flg;
+        if (s==PCP_INVALID_SOCKET)
+            return PCP_INVALID_SOCKET;
+
 #ifdef WIN32
-            unsigned long iMode = 1;
-            OSDEP(flg);
-            ioctlsocket(s, FIONBIO, &iMode);
+        if (ioctlsocket(s, FIONBIO, &iMode)) {
+            PCP_LOGGER(PCP_DEBUG_ERR, "%s",
+                "Unable to set nonblocking mode for socket.");
+            CLOSE(s);
+            return PCP_INVALID_SOCKET;
+        }
 #else
-            flg = fcntl(s, F_GETFL, 0);
-            fcntl(s, F_SETFL, flg | O_NONBLOCK);
+        flg = fcntl(s, F_GETFL, 0);
+        if (fcntl(s, F_SETFL, flg | O_NONBLOCK)) {
+            PCP_LOGGER(PCP_DEBUG_ERR, "%s",
+                "Unable to set nonblocking mode for socket.");
+            CLOSE(s);
+            return PCP_INVALID_SOCKET;
+        }
 #endif
 #ifdef PCP_USE_IPV6_SOCKET
-            flg = 0;
-            if (PCP_SOCKET_ERROR == setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-                (char*)&flg, sizeof(flg))) {
-                PCP_LOGGER(PCP_DEBUG_ERR, "%s",
-                    "Dual-stack sockets are not supported on this platform. "
-                    "Recompile library with disabled IPv6 support.");
-                CLOSE(s);
-                return PCP_INVALID_SOCKET;
-            }
-#endif //PCP_USE_IPV6_SOCKET
+        flg = 0;
+        if (PCP_SOCKET_ERROR == setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+            (char*)&flg, sizeof(flg))) {
+            PCP_LOGGER(PCP_DEBUG_ERR, "%s",
+                "Dual-stack sockets are not supported on this platform. "
+                "Recompile library with disabled IPv6 support.");
+            CLOSE(s);
+            return PCP_INVALID_SOCKET;
         }
+#endif //PCP_USE_IPV6_SOCKET
         while (bind(s, (struct sockaddr*)&sas, SA_LEN((struct sockaddr*) &sas))
             == PCP_SOCKET_ERROR) {
-#ifdef WIN32
-            int errnum = WSAGetLastError();
-            if (errnum == WSAEADDRINUSE) {
-#else
-            int errnum = errno;
-            if (errnum == EADDRINUSE) {
-#endif
+            if (pcp_get_error() == PCP_ERR_ADDRINUSE) {
                 if (sas.ss_family==AF_INET) {
                     sin->sin_port=htons(ntohs(sin->sin_port)+1);
                 } else {
                     sin6->sin6_port=htons(ntohs(sin6->sin6_port)+1);
                 }
             } else {
-                char errbuf[100];
-                pcp_strerror(errnum, errbuf, sizeof(errbuf));
-                PCP_LOGGER(PCP_DEBUG_ERR,"bind error(%d): %s",errnum,errbuf);
+                PCP_LOGGER(PCP_DEBUG_ERR,"%s","bind error");
                 CLOSE(s);
                 return PCP_INVALID_SOCKET;
             }
@@ -212,32 +244,12 @@ ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int fl
                 src_addr, addrlen);
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
-#ifdef WIN32
-    {
-        ssize_t ret;
-
-/*        if (*addrlen>sizeof(struct sockaddr_in)) {
-            *addrlen=sizeof(struct sockaddr_in);
-        }*/
-
-        ret = recvfrom(ctx->socket, buf, len, 0, src_addr, addrlen);
-        if (ret==PCP_SOCKET_ERROR) {
-            int winerrno=WSAGetLastError();
-            if (winerrno==WSAEWOULDBLOCK)  {
-                ret=PCP_ERR_WOULDBLOCK;
-            } else {
-                ret=PCP_ERR_RECV_FAILED;
-            }
-        }
-        return ret;
-    }
-#else  //WIN32
     {
         ssize_t ret;
 
         ret = recvfrom(ctx->socket, buf, len, flags, src_addr, addrlen);
         if (ret==PCP_SOCKET_ERROR) {
-            if ((errno==EAGAIN)||(errno==EWOULDBLOCK)) {
+            if (pcp_get_error()==PCP_ERR_WOULDBLOCK) {
                 ret=PCP_ERR_WOULDBLOCK;
             } else {
                 ret=PCP_ERR_RECV_FAILED;
@@ -245,7 +257,6 @@ ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int fl
         }
         return ret;
     }
-#endif //WIN32
 #else  //PCP_SOCKET_IS_VOIDPTR
     return -1;
 #endif //PCP_SOCKET_IS_VOIDPTR
@@ -254,15 +265,23 @@ ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int fl
 ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len,
         int flags, struct sockaddr *dest_addr, socklen_t addrlen)
 {
+    ssize_t ret=-1;
+
     if (ctx->virt_socket_tb.sock_sendto) {
         return ctx->virt_socket_tb.sock_sendto(ctx->socket, buf, len, flags,
                 dest_addr, addrlen);
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
-    return sendto(ctx->socket, buf, len, 0, dest_addr, addrlen);
-#else
-    return -1;
+    ret = sendto(ctx->socket, buf, len, 0, dest_addr, addrlen);
+    if ((ret==PCP_SOCKET_ERROR) || (ret!=len)) {
+        if (pcp_get_error() == PCP_ERR_WOULDBLOCK) {
+            ret=PCP_ERR_WOULDBLOCK;
+        } else {
+            ret=PCP_ERR_SEND_FAILED;
+        }
+    }
 #endif
+    return ret;
 }
 
 int pcp_socket_close(struct pcp_ctx_s* ctx)

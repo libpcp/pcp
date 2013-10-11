@@ -352,10 +352,7 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
 {
     ssize_t ret;
     size_t to_send_count;
-    unsigned long iMode = 1;
     pcp_ctx_t *ctx = s->ctx;
-
-    OSDEP(iMode);
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 
@@ -378,40 +375,19 @@ static pcp_errno pcp_flow_send_msg(pcp_flow_t* flow, pcp_server_t *s)
                 flow->pcp_msg_len - ret, MSG_DONTWAIT,
                 (struct sockaddr*)&s->pcp_server_saddr,
                 SA_LEN((struct sockaddr*)&s->pcp_server_saddr));
-        if (ret == PCP_SOCKET_ERROR) { //LCOV_EXCL_START
-            int errnum;
-#ifdef WIN32
-            errnum = WSAGetLastError();
-            if ( (errnum == EAGAIN) || (errnum == WSAEWOULDBLOCK) ) {
-#else
-            errnum = errno;
-            if ((errnum == EAGAIN) || (errnum == EWOULDBLOCK)) {
-#endif //WIN32
-                break;
-            } else {
-                char buff[128];
-                pcp_strerror(errnum, buff, sizeof(buff));
-                PCP_LOGGER(PCP_DEBUG_WARN, "Error (%s) occurred while sending "
-                        "PCP packet to server %s", buff, s->pcp_server_paddr);
-                PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-                return PCP_ERR_SEND_FAILED;
-            }
+        if (ret <= 0) { //LCOV_EXCL_START
+            PCP_LOGGER(PCP_DEBUG_WARN, "Error occurred while sending "
+                "PCP packet to server %s", s->pcp_server_paddr);
+            PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+            return PCP_ERR_SEND_FAILED;
         }                               //LCOV_EXCL_STOP
         to_send_count -= ret;
     }
 
     PCP_LOGGER(PCP_DEBUG_INFO, "Sent PCP MSG (flow bucket:%d)",
-            flow->key_bucket);
+        flow->key_bucket);
 
     pcp_flow_clear_msg_buf(flow);
-
-    if (to_send_count == 0) {
-        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-        return PCP_ERR_SUCCESS;
-    } else {                            //LCOV_EXCL_START
-        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-        return PCP_ERR_SEND_FAILED;
-    }                                   //LCOV_EXCL_STOP
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return PCP_ERR_SUCCESS;
@@ -1293,7 +1269,6 @@ static int hserver_iter(pcp_server_t* s, void* data)
 int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
 {
     pcp_recv_msg_t *msg;
-    pcp_errno ret;
     struct timeval tmp_timeout={0, 0};
 
     if (!ctx) {
@@ -1307,11 +1282,11 @@ int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
     }
 
     memset(msg, 1, sizeof(*msg));
-    ret = read_msg(ctx, msg);
 
-    if (ret==PCP_ERR_SUCCESS) {
+    if (read_msg(ctx, msg)==PCP_ERR_SUCCESS) {
         struct in6_addr ip6;
         pcp_server_t* s;
+        struct hserver_iter_data param = {NULL, pcpe_io_event};
 
         msg->received_time = time(NULL);
 
@@ -1335,15 +1310,9 @@ int pcp_pulse(pcp_ctx_t* ctx, struct timeval *next_timeout)
             memcpy(&msg->kd.nonce, &s->nonce, sizeof(struct pcp_nonce));
         }
 
-        {
-            struct hserver_iter_data param = {NULL, pcpe_io_event};
-            hserver_iter(s, &param);
-        }
-    }/* else if (ret!=PCP_ERR_WOULDBLOCK) {
-       struct hserver_iter_data param = {NULL, pcpe_terminate};
-       pcp_db_foreach_server(ctx, hserver_iter, &param);
-       goto end;
-    }*/
+        // process pcpe_io_event for server
+        hserver_iter(s, &param);
+    }
 
 process_timeouts:
     {
@@ -1351,7 +1320,6 @@ process_timeouts:
         pcp_db_foreach_server(ctx, hserver_iter, &param);
     }
 
-//end:
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return (next_timeout->tv_sec*1000)+(next_timeout->tv_usec/1000);
 }
@@ -1381,8 +1349,10 @@ void pcp_flow_updated(pcp_flow_t* f)
 void pcp_set_flow_change_cb(pcp_ctx_t* ctx, pcp_flow_change_notify cb_fun,
         void* cb_arg)
 {
-    ctx->flow_change_cb_fun = cb_fun;
-    ctx->flow_change_cb_arg = cb_arg;
+    if (ctx) {
+        ctx->flow_change_cb_fun = cb_fun;
+        ctx->flow_change_cb_arg = cb_arg;
+    }
 }
 
 static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state)
@@ -1401,9 +1371,8 @@ static void flow_change_notify(pcp_flow_t* flow, pcp_fstate_e state)
             pcp_fill_sockaddr((struct sockaddr*)&ext_addr, &flow->map_peer.ext_ip,
                     flow->map_peer.ext_port, 0);
         } else {
-            pcp_server_t *s = get_pcp_server(ctx, flow->pcp_server_indx);
             memset(&ext_addr,0,sizeof(ext_addr));
-            ext_addr.ss_family = s?s->af:AF_INET;
+            ext_addr.ss_family = AF_INET;
         }
         ctx->flow_change_cb_fun(
                 flow, (struct sockaddr*)&src_addr,

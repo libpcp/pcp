@@ -118,7 +118,8 @@ typedef enum {
     PCP_ERR_SHORT_LIFETIME_ERR = -10,
     PCP_ERR_TIMEOUT = -11,
     PCP_ERR_NOT_FOUND = -12,
-    PCP_ERR_WOULDBLOCK= -13
+    PCP_ERR_WOULDBLOCK = -13,
+    PCP_ERR_ADDRINUSE = -14
 } pcp_errno;
 
 typedef enum {

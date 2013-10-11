@@ -40,7 +40,6 @@
 #endif
 #include    <errno.h>
 #include    <ctype.h>
-#include    "gateway.h"
 #include    "pcp_utils.h"
 #include    "unp.h"
 
@@ -219,8 +218,6 @@ struct sockaddr *Sock_pton(const char* cp)
 int
 sock_pton_with_prefix(const char* cp, struct sockaddr *sa, int *int_prefix)
 {
-#define IPV4_OFFSET_PREFIX 96
-
     const char * prefix_begin = NULL;
     char * prefix = NULL;
 

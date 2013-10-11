@@ -89,11 +89,11 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         s->src_ip[2] = htonl(0xFFFF);
         s->src_ip[3] = S6_ADDR32(&src_ip)[3];
     } else {
-            PCP_LOGGER(PCP_DEBUG_WARN, "%s",
-                    "IPv6 is disabled and IPv6 address of PCP server occured");
+        PCP_LOGGER(PCP_DEBUG_WARN, "%s",
+                "IPv6 is disabled and IPv6 address of PCP server occured");
 
-            PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-            return PCP_ERR_BAD_AFINET;
+        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+        return PCP_ERR_BAD_AFINET;
     }
 #else //PCP_USE_IPV6_SOCKET
     s->pcp_server_saddr.ss_family = AF_INET6;
@@ -140,18 +140,22 @@ void psd_add_gws(pcp_ctx_t *ctx)
     for (; rcount > 0; rcount--) {
         int pcps_indx;
 
-        if (((IN6_IS_ADDR_V4MAPPED(gw)) &&
-             (S6_ADDR32(gw)[3]==INADDR_ANY)) ||
-            (IN6_IS_ADDR_UNSPECIFIED(gw)))
+        if ((IN6_IS_ADDR_V4MAPPED(gw)) && (S6_ADDR32(gw)[3]==INADDR_ANY))
             continue;
 
-        if (get_pcp_server_by_ip(ctx, gw)) {
+        if(IN6_IS_ADDR_UNSPECIFIED(gw))
             continue;
-        }
+
+        if (get_pcp_server_by_ip(ctx, gw))
+            continue;
+
 
         pcps_indx = pcp_new_server(ctx, gw, ntohs(PCP_SERVER_PORT));
         if (pcps_indx >= 0) {
             pcp_server_t *s = get_pcp_server(ctx, pcps_indx);
+            if (!s)
+                continue;
+
             psd_fill_pcp_server_src(s);
 
             if (pcp_log_level>=PCP_DEBUG_INFO) {
@@ -208,14 +212,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t* ctx, struct sockaddr* sa, uint8_t versio
     pcps->pcp_version = version;
     pcps->server_state = pss_allocated;
 
-    if (psd_fill_pcp_server_src(pcps) == PCP_ERR_SUCCESS) {
-
-        PCP_LOGGER(PCP_DEBUG_INFO, "Added PCP server %s",
-            pcps->pcp_server_paddr);
-
-        PCP_LOGGER_END(PCP_DEBUG_DEBUG);
-        return (pcp_errno)pcps->index;
-    } else {
+    if (psd_fill_pcp_server_src(pcps)) {
         pcps->server_state = pss_unitialized;
         PCP_LOGGER(PCP_DEBUG_INFO, "Failed to add PCP server %s",
             pcps->pcp_server_paddr);
@@ -223,4 +220,10 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t* ctx, struct sockaddr* sa, uint8_t versio
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return PCP_ERR_UNKNOWN;
     }
+
+    PCP_LOGGER(PCP_DEBUG_INFO, "Added PCP server %s",
+        pcps->pcp_server_paddr);
+
+    PCP_LOGGER_END(PCP_DEBUG_DEBUG);
+    return (pcp_errno)pcps->index;
 }

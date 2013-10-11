@@ -54,17 +54,26 @@
  * important - getting the result the kernel would give us rather than
  * best-guessing ourselves.
  */
+
+#ifndef SOCKET
+#define SOCKET int
+#endif
+
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET -1
+#endif
+
 const char *
 findsaddr(register const struct sockaddr_in *to,
     struct in6_addr *from)
 {
     const char *errstr;
     struct sockaddr_in cto, cfrom;
-    PCP_SOCKET s;
+    SOCKET s;
     socklen_t len;
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s == -1) //LCOV_EXCL_START
+    if (s == INVALID_SOCKET) //LCOV_EXCL_START
         return ("failed to open DGRAM socket for src addr selection.");
 //LCOV_EXCL_STOP
     errstr = NULL;
@@ -97,14 +106,14 @@ err:
     /* No error (string) to return. */
     return (errstr);
 }
-#include <stdio.h>
+
 const char *
 findsaddr6(register const struct sockaddr_in6 *to,
     register struct in6_addr *from)
 {
     const char *errstr;
     struct sockaddr_in6 cto, cfrom;
-    PCP_SOCKET s;
+    SOCKET s;
     socklen_t len;
     uint32_t sock_flg=0;
 
@@ -114,22 +123,26 @@ findsaddr6(register const struct sockaddr_in6 *to,
     }
 
     s = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (s == -1) //LCOV_EXCL_START
+    if (s == INVALID_SOCKET) //LCOV_EXCL_START
         return ("failed to open DGRAM socket for src addr selection.");
     //LCOV_EXCL_STOP
 
-    //Enable Dual-stack socket for Vista and higher
-    setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&sock_flg,
-        sizeof(sock_flg));
-
     errstr = NULL;
+
+    //Enable Dual-stack socket for Vista and higher
+    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&sock_flg,
+        sizeof(sock_flg))==-1) {
+        errstr = "setsockopt failed to set dual stack mode."; //LCOV_EXCL_START
+        goto err;
+    } //LCOV_EXCL_STOP
+
     len = sizeof(struct sockaddr_in6);
     memcpy(&cto, to, len);
     cto.sin6_port = htons(65535);    /* Dummy port for connect(2). */
     if (connect(s, (struct sockaddr *)&cto, len) == -1) {
         errstr = "failed to connect to peer for src addr selection."; //LCOV_EXCL_START
         goto err;
-    } //LCOV_EXCL_STOp
+    } //LCOV_EXCL_STOP
 
     if (getsockname(s, (struct sockaddr *)&cfrom, &len) == -1) {
         errstr = "failed to get socket name for src addr selection."; //LCOV_EXCL_START

@@ -9,7 +9,7 @@
   #define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
 #endif /* defined(_MSC_VER) || defined(_MSC_EXTENSIONS)*/
 
-/* custom implementation of the gettimeof day function
+/* custom implementation of the gettimeofday function
     for Windows platform. */
 
 struct timezone

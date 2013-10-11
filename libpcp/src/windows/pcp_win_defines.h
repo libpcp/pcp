@@ -33,7 +33,7 @@
 #include <winbase.h> /*GetCurrentProcessId*/ /*link with kernel32.dll*/
 #include "stdint.h"
 /* windows uses Sleep(miliseconds) method, instead of UNIX sleep(seconds) */
-#define sleep(x) Sleep((x) * 1000) 
+#define sleep(x) Sleep((x) * 1000)
 
 #ifdef _MSC_VER
 #define inline __inline /*In Visual Studio inline keyword only available in C++ */
@@ -79,7 +79,7 @@ static inline const char* pcp_inet_ntop(int af, const void* src, char* dst, int 
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
-#define MSG_DONTWAIT    0x40
+#define MSG_DONTWAIT    0x0
 
 
 #endif /*PCP_WIN_DEFINES*/
