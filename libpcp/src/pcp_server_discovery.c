@@ -137,7 +137,7 @@ void psd_add_gws(pcp_ctx_t *ctx)
     int rcount = getgateways(&gws);
     gw = gws;
 
-    for (; rcount > 0; rcount--) {
+    for (; rcount > 0; rcount--, gw++) {
         int pcps_indx;
 
         if ((IN6_IS_ADDR_V4MAPPED(gw)) && (S6_ADDR32(gw)[3]==INADDR_ANY))
@@ -164,7 +164,6 @@ void psd_add_gws(pcp_ctx_t *ctx)
                         s?s->pcp_server_paddr:"NULL pointer!!!");
             }
         }
-        gw++;
     }
     free(gws);
 }
