@@ -61,7 +61,7 @@ static inline const char* pcp_inet_ntop(int af, const void* src, char* dst, int 
         return NULL;
     }
     srcaddr.ss_family = af;
-    if (WSAAddressToString((struct sockaddr*) &srcaddr, slen, 0, dst,
+    if (WSAAddressToString((struct sockaddr*) &srcaddr, (DWORD)slen, 0, dst,
         (LPDWORD) &cnt) != 0) {
         return NULL;
     }

@@ -25,7 +25,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-//#include <syslog.h>
 #include <sys/types.h>
 #ifndef WIN32
 #include <sys/socket.h>         // place it before <net/if.h> struct sockaddr
@@ -98,8 +97,6 @@
 #endif
 
 
-void get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info);
-
 #define TO_IPV6MAPPED(x)        S6_ADDR32(x)[3] = S6_ADDR32(x)[0];\
                                 S6_ADDR32(x)[0] = 0;\
                                 S6_ADDR32(x)[1] = 0;\
@@ -122,7 +119,9 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pI
         /* Receive response from the kernel */
         readLen = recv(sockFd, bufPtr, BUFSIZE - msgLen, 0);
         if(readLen == -1){ //LCOV_EXCL_START
-            perror("SOCK READ: ");
+            char err_msg[128];
+            pcp_strerror(errno, err_msg, sizeof(err_msg));
+            PCP_LOGGER(PCP_DEBUG_DEBUG, "SOCK READ: %s", err_msg);
             return -1;
         }//LCOV_EXCL_STOP
 
@@ -132,15 +131,14 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum, unsigned pI
         if ((NLMSG_OK(nlHdr, (unsigned)readLen) == 0) ||//LCOV_EXCL_START
             (nlHdr->nlmsg_type == NLMSG_ERROR))
         {
-            perror("Error in received packet");
+            PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Error in received packet");
             return -1;
         }//LCOV_EXCL_STOP
 
         /* Check if the its the last message */
         if(nlHdr->nlmsg_type == NLMSG_DONE) {
             break;
-        }
-        else{
+        } else {
             /* Else move the pointer to buffer appropriately */
             bufPtr += readLen;
             msgLen += readLen;
@@ -171,7 +169,7 @@ int getgateways(struct in6_addr ** gws)
     /* Create Socket */
     sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
     if(sock < 0) { //LCOV_EXCL_START
-        perror("Socket Creation: ");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Netlink Socket Creation Failed...");
         return PCP_ERR_UNKNOWN;
     } //LCOV_EXCL_STOP
 
@@ -192,7 +190,7 @@ int getgateways(struct in6_addr ** gws)
     /* Send the request */
     len = send(sock, nlMsg, nlMsg->nlmsg_len, 0);
     if(len == -1){ //LCOV_EXCL_START
-        printf("Write To Socket Failed...\n");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Write To Netlink Socket Failed...");
         ret=PCP_ERR_SEND_FAILED;
         goto end;
     } //LCOV_EXCL_STOP
@@ -200,7 +198,7 @@ int getgateways(struct in6_addr ** gws)
     /* Read the response */
     len = readNlSock(sock, msgBuf, msgSeq, getpid());
     if(len < 0) { //LCOV_EXCL_START
-        printf("Read From Socket Failed...\n");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Read From Netlink Socket Failed...");
         ret=PCP_ERR_RECV_FAILED;
         goto end;
     } //LCOV_EXCL_STOP
@@ -388,6 +386,7 @@ get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family);
 typedef route_op_t route_in_t;
 typedef route_op_t route_out_t;
 
+static void get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info);
 
 static int route_get(in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char *ifname, route_in_t *routein, route_out_t *routeout);
 static int route_add(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *ifname, route_in_t *routein, route_out_t *routeout);
@@ -402,7 +401,9 @@ find_if_with_name(const char *iface, struct sockaddr_dl *out)
     struct sockaddr_dl *sdl = NULL;
 
     if (getifaddrs(&ifap)) {
-        perror("getifaddrs");
+        char err_msg[128];
+        pcp_strerror(errno, err_msg, sizeof(err_msg));
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "getifaddrs: %s", err_msg);
         return -1;
     }
 
@@ -422,7 +423,7 @@ find_if_with_name(const char *iface, struct sockaddr_dl *out)
     freeifaddrs(ifap);
 
     if (sdl == NULL) {
-        printf("interface %s not found or invalid(must be p-p)\n", iface);
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"interface %s not found or invalid(must be p-p)", iface);
         return -1;
     }
     return 0;
@@ -483,7 +484,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
         so_addr[RTAX_DST].sin.sin_family = AF_INET;
         so_addr[RTAX_DST].sin.sin_addr.s_addr = mask ? *dst & *mask : *dst;
     } else {
-        fprintf(stderr, "invalid(require) dst address.\n");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","invalid(require) dst address");
         return -1;
     }
 
@@ -524,7 +525,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
 
             } else {
                 if (iface == NULL) {
-                    fprintf(stderr, "Requir gateway or iface.\n");
+                    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","Requir gateway or iface.");
                     return -1;
                 }
 
@@ -558,7 +559,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
 
     int sock = socket(PF_ROUTE, SOCK_RAW, AF_INET);
     if (sock == -1) {
-        perror("socket(PF_ROUTE, SOCK_RAW, AF_INET) failed");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","socket(PF_ROUTE, SOCK_RAW, AF_INET) failed");
         return -1;
     }
 
@@ -573,7 +574,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
         } while (len > 0 && (msg.msghdr.rtm_seq != seq || msg.msghdr.rtm_pid != pid));
 
         if (len < 0) {
-            perror("read from routing socket");
+            PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","read from routing socket failed");
             err = -1;
         } else {
             struct sockaddr *s_netmask = NULL;
@@ -583,15 +584,15 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
             struct sockaddr *rti_info[RTAX_MAX];
 
             if (msg.msghdr.rtm_version != RTM_VERSION) {
-                fprintf(stderr, "routing message version %d not understood\n", msg.msghdr.rtm_version);
+                PCP_LOGGER(PCP_DEBUG_DEBUG,"routing message version %d not understood", msg.msghdr.rtm_version);
                 err = -1;
                 goto end;
             }
             if (msg.msghdr.rtm_msglen > len) {
-                fprintf(stderr, "message length mismatch, in packet %d, returned %lu\n", msg.msghdr.rtm_msglen, (unsigned long)len);
+                PCP_LOGGER(PCP_DEBUG_DEBUG,"message length mismatch, in packet %d, returned %lu", msg.msghdr.rtm_msglen, (unsigned long)len);
             }
             if (msg.msghdr.rtm_errno) {
-                fprintf(stderr, "message indicates error %d, %s\n", msg.msghdr.rtm_errno, strerror(msg.msghdr.rtm_errno));
+                PCP_LOGGER(PCP_DEBUG_DEBUG,"message indicates error %d, %s", msg.msghdr.rtm_errno, strerror(msg.msghdr.rtm_errno));
                 err = -1;
                 goto end;
             }
@@ -674,7 +675,7 @@ route_op(u_char op, in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char
 
 end:
     if (close(sock) < 0) {
-        perror("close");
+        PCP_LOGGER(PCP_DEBUG_DEBUG,"%s","socket close failed");
     }
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
@@ -689,7 +690,7 @@ route_get_sa(struct sockaddr *dst, in_addr_t * mask, struct sockaddr * gateway, 
     return route_op(RTM_GET, &(((struct sockaddr_in *) dst)->sin_addr.s_addr), mask,
             &(((struct sockaddr_in *) gateway)->sin_addr.s_addr), ifname, routein, routeout);
 #else
-    printf("%s: todo...\n", __FUNCTION__);
+    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s: todo...\n", __FUNCTION__);
     return 0;
 #endif
 }
@@ -700,7 +701,7 @@ route_get(in_addr_t * dst, in_addr_t * mask, in_addr_t * gateway, char iface[], 
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return route_op(RTM_GET, dst, mask, gateway, iface, routein, routeout);
 #else
-    printf("%s: todo...\n", __FUNCTION__);
+    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s: todo...\n", __FUNCTION__);
     return 0;
 #endif
 }
@@ -711,7 +712,7 @@ route_add(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface, r
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return route_op(RTM_ADD, &dst, &mask, &gateway, (char *)iface, routein, routeout);
 #else
-    printf("%s: todo...\n", __FUNCTION__);
+    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s: todo...\n", __FUNCTION__);
     return -1;
 #endif
 }
@@ -722,7 +723,7 @@ route_change(in_addr_t dst, in_addr_t mask, in_addr_t gateway, const char *iface
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return route_op(RTM_CHANGE, &dst, &mask, &gateway, (char *)iface, routein, routeout);
 #else
-    printf("%s: todo...\n", __FUNCTION__);
+    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s: todo...\n", __FUNCTION__);
     return -1;
 #endif
 }
@@ -733,7 +734,7 @@ route_delete(in_addr_t dst, in_addr_t mask, route_in_t *routein, route_out_t *ro
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return route_op(RTM_DELETE, &dst, &mask, 0, NULL, routein, routeout);
 #else
-    printf("%s: todo...\n", __FUNCTION__);
+    PCP_LOGGER(PCP_DEBUG_DEBUG,"%s: todo...\n", __FUNCTION__);
     return -1;
 #endif
 }
@@ -750,7 +751,9 @@ get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family)
     struct ifaddrs *ifaddr, *ifa;
 
     if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
+        char err_msg[128];
+        pcp_strerror(errno, err_msg, sizeof(err_msg));
+        PCP_LOGGER(PCP_DEBUG_DEBUG, "getifaddrs: %s", err_msg);
         return -1;
     }
 
@@ -788,23 +791,23 @@ get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family)
  * if sa_len is 0, assume it is sizeof(u_long). Using u_long only works on 32-bit
    machines. In 64-bit machines it needs to be u_int32_t !!
  */
-#define NEXT_SA(ap)	ap = (struct sockaddr *) \
-	((caddr_t) ap + (ap->sa_len ? ROUNDUP(ap->sa_len, sizeof(uint32_t)) : \
-									sizeof(uint32_t)))
+#define NEXT_SA(ap)    ap = (struct sockaddr *) \
+    ((caddr_t) ap + (ap->sa_len ? ROUNDUP(ap->sa_len, sizeof(uint32_t)) : \
+                                    sizeof(uint32_t)))
 
 /* thanks Stevens for this very handy function */
 static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 {
-	int		i;
+    int i;
 
-	for (i = 0; i < RTAX_MAX; i++) {
-		if (addrs & (1 << i)) {
-			rti_info[i] = sa;
-			NEXT_SA(sa);
-		} else
-			rti_info[i] = NULL;
-	}
+    for (i = 0; i < RTAX_MAX; i++) {
+        if (addrs & (1 << i)) {
+            rti_info[i] = sa;
+            NEXT_SA(sa);
+        } else
+            rti_info[i] = NULL;
+    }
 }
 
 /* Portable (hopefully) function to lookup routing tables. sysctl()'s
@@ -813,24 +816,24 @@ get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 static char *
 net_rt_dump(int type, int family, int flags, size_t *lenp)
 {
-	int		mib[6];
-	char	*buf;
+    int      mib[6];
+    char    *buf;
 
-	mib[0] = CTL_NET;
-	mib[1] = AF_ROUTE;
-	mib[2] = 0;
-	mib[3] = family;		/* only addresses of this family */
-	mib[4] = type;
-	mib[5] = flags;			/* not looked at with NET_RT_DUMP */
-	if (sysctl(mib, 6, NULL, lenp, NULL, 0) < 0)
-		return(NULL);
+    mib[0] = CTL_NET;
+    mib[1] = AF_ROUTE;
+    mib[2] = 0;
+    mib[3] = family;        /* only addresses of this family */
+    mib[4] = type;
+    mib[5] = flags;            /* not looked at with NET_RT_DUMP */
+    if (sysctl(mib, 6, NULL, lenp, NULL, 0) < 0)
+        return(NULL);
 
-	if ((buf = malloc(*lenp)) == NULL)
-		return(NULL);
-	if (sysctl(mib, 6, buf, lenp, NULL, 0) < 0)
-		return(NULL);
+    if ((buf = malloc(*lenp)) == NULL)
+        return(NULL);
+    if (sysctl(mib, 6, buf, lenp, NULL, 0) < 0)
+        return(NULL);
 
-	return(buf);
+    return(buf);
 }
 
 /* Performs a route table dump selecting only entries that have Gateways.
