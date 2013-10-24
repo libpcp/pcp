@@ -1,5 +1,11 @@
 
-#ifdef WIN32
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
+#ifndef HAVE_GETTIMEOFDAY
 #include <windows.h>
 //#include <winsock2.h>
 #include <time.h>
@@ -61,4 +67,4 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
   return 0;
 }
 
-#endif //WIN32
+#endif //HAVE_GETTIMEOFDAY

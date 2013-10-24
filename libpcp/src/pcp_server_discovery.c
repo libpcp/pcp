@@ -23,6 +23,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
 
 #include <stddef.h>
 #include <stdio.h>
@@ -90,7 +95,7 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         s->src_ip[3] = S6_ADDR32(&src_ip)[3];
     } else {
         PCP_LOGGER(PCP_DEBUG_WARN, "%s",
-                "IPv6 is disabled and IPv6 address of PCP server occured");
+                "IPv6 is disabled and IPv6 address of PCP server occurred");
 
         PCP_LOGGER_END(PCP_DEBUG_DEBUG);
         return PCP_ERR_BAD_AFINET;
@@ -156,12 +161,14 @@ void psd_add_gws(pcp_ctx_t *ctx)
             if (!s)
                 continue;
 
-            psd_fill_pcp_server_src(s);
-
-            if (pcp_log_level>=PCP_DEBUG_INFO) {
+            if (psd_fill_pcp_server_src(s)) {
+                PCP_LOGGER(PCP_DEBUG_ERR,
+                    "Failed to initialize gateway %s as a PCP server.",
+                    s?s->pcp_server_paddr:"NULL pointer!!!");
+            } else {
                 PCP_LOGGER(PCP_DEBUG_INFO, "Found gateway %s. "
-                        "Added as possible PCP server.",
-                        s?s->pcp_server_paddr:"NULL pointer!!!");
+                    "Added as possible PCP server.",
+                    s?s->pcp_server_paddr:"NULL pointer!!!");
             }
         }
     }

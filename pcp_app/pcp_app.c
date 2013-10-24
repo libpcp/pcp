@@ -23,6 +23,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
 #include "pcp.h"
 #include "pcp_msg_structs.h"
 #include <stdio.h>
@@ -413,6 +419,22 @@ struct pcp_params {
 
 void parse_params(struct pcp_params *p, int argc, char *argv[]);
 
+
+static inline unsigned long mix(unsigned long a, unsigned long b, unsigned long c)
+{
+     a=a-b;  a=a-c;  a=a^(c >> 13);
+     b=b-c;  b=b-a;  b=b^(a << 8);
+     c=c-a;  c=c-b;  c=c^(b >> 13);
+     a=a-b;  a=a-c;  a=a^(c >> 12);
+     b=b-c;  b=b-a;  b=b^(a << 16);
+     c=c-a;  c=c-b;  c=c^(b >> 5);
+     a=a-b;  a=a-c;  a=a^(c >> 3);
+     b=b-c;  b=b-a;  b=b^(a << 10);
+     c=c-a;  c=c-b;  c=c^(b >> 15);
+
+     return c;
+}
+
 int main(int argc, char *argv[])
 {
     struct pcp_params p;
@@ -423,6 +445,8 @@ int main(int argc, char *argv[])
     int ret_val = 1;
     pcp_flow_t* flow = NULL;
     struct pcp_server_list *server;
+
+    srand(mix(clock(), (unsigned long)time(NULL), getpid()));
 
     PD_SOCKET_STARTUP();
 

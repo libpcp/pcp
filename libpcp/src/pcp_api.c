@@ -23,6 +23,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS 1
 #endif
@@ -81,25 +87,9 @@ int pcp_add_server(pcp_ctx_t* ctx, struct sockaddr* pcp_server,
     return res;
 }
 
-static inline unsigned long mix(unsigned long a, unsigned long b, unsigned long c)
-{
-     a=a-b;  a=a-c;  a=a^(c >> 13);
-     b=b-c;  b=b-a;  b=b^(a << 8);
-     c=c-a;  c=c-b;  c=c^(b >> 13);
-     a=a-b;  a=a-c;  a=a^(c >> 12);
-     b=b-c;  b=b-a;  b=b^(a << 16);
-     c=c-a;  c=c-b;  c=c^(b >> 5);
-     a=a-b;  a=a-c;  a=a^(c >> 3);
-     b=b-c;  b=b-a;  b=b^(a << 10);
-     c=c-a;  c=c-b;  c=c^(b >> 15);
-
-     return c;
-}
-
 pcp_ctx_t* pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt)
 {
     pcp_ctx_t* ctx = (pcp_ctx_t*)calloc(1, sizeof(pcp_ctx_t));
-//    srand(mix(clock(), (unsigned long)time(NULL), getpid()));
 
     PCP_LOGGER_BEGIN(PCP_DEBUG_DEBUG);
 

@@ -26,6 +26,12 @@
  * $FreeBSD$
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
 #include <string.h>
 #ifndef WIN32
 # include <sys/types.h>

@@ -23,6 +23,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -52,14 +58,6 @@
 #include "pcp_server_discovery.h"
 #include "pcp_socket.h"
 
-//   IRT:   Initial retransmission time, SHOULD be 3 seconds
-#define PCP_RETX_IRT 3
-//   MRC:   Maximum retransmission count, SHOULD be 0 (0 indicates no maximum)
-#define PCP_RETX_MRC 3
-//   MRT:   Maximum retransmission time, SHOULD be 1024 seconds
-#define PCP_RETX_MRT 1024
-//   MRD:   Maximum retransmission duration, SHOULD be 0(0 indicates no maximum)
-#define PCP_RETX_MRD 0
 #define MIN(a, b) (a<b?a:b)
 #define MAX(a, b) (a>b?a:b)
 #define PCP_RT(rtprev) ((rtprev=rtprev<<1),(((8192+(1024-(rand()&2047))) \
@@ -437,7 +435,8 @@ static pcp_flow_event_e fhndl_send(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
     f->resend_timeout = PCP_RETX_IRT;
     //set timeout field
     gettimeofday(&f->timeout, NULL);
-    f->timeout.tv_sec += f->resend_timeout;
+    f->timeout.tv_sec += f->resend_timeout/1000;
+    f->timeout.tv_usec += (f->resend_timeout%1000)*1000;
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return fev_msg_sent;
@@ -468,7 +467,7 @@ static pcp_flow_event_e fhndl_resend(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 
 #if (PCP_RETX_MRD>0)
     {
-        int tdiff = curtime - f->created_time;
+        int tdiff = (curtime - f->created_time)*1000;
         if (tdiff > PCP_RETX_MRD) {
             return fev_failed;
         }
@@ -480,7 +479,8 @@ static pcp_flow_event_e fhndl_resend(pcp_flow_t* f, UNUSED pcp_recv_msg_t* msg)
 
     //set timeout field
     gettimeofday(&f->timeout, NULL);
-    f->timeout.tv_sec += f->resend_timeout;
+    f->timeout.tv_sec += f->resend_timeout/1000;
+    f->timeout.tv_usec += (f->resend_timeout%1000)*1000;
 
     PCP_LOGGER_END(PCP_DEBUG_DEBUG);
     return fev_msg_sent;

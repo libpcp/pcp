@@ -49,28 +49,6 @@ typedef int ssize_t;
 extern "C" {
 #endif
 
-#define PCP_MAX_SUPPORTED_VERSION 2
-
-#ifndef PCP_MIN_SUPPORTED_VERSION
-#ifdef PCP_DISABLE_NATPMP_SUPPORT
-#define PCP_MIN_SUPPORTED_VERSION 1
-#else
-#define PCP_MIN_SUPPORTED_VERSION 0
-#endif
-#endif
-
-#ifndef PCP_SERVER_PORT
-#define PCP_SERVER_PORT 5351
-#endif
-
-#ifndef PCP_MAX_PING_COUNT
-#define PCP_MAX_PING_COUNT 5
-#endif
-
-#ifndef PCP_SERVER_DISCOVERY_RETRY_DELAY
-#define PCP_SERVER_DISCOVERY_RETRY_DELAY 3600
-#endif
-
 #ifdef PCP_SOCKET_IS_VOIDPTR
 #define PCP_SOCKET void*
 #else //PCP_SOCKET_IS_VOIDPTR

@@ -1,3 +1,9 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#else
+#include "default_config.h"
+#endif
+
 #include "pcp_event_handler.c"
 #include "pcp_api.c"
 #include <stdio.h>

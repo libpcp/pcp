@@ -14,6 +14,7 @@ AC_CONFIG_FILES([
  pcp_app/Makefile
  tests/Makefile
 ])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_CC_C_O
 AC_PROG_AWK
@@ -131,7 +132,11 @@ AC_ARG_ENABLE([natpmp],
 
 if test "x$enable_natpmp" != "xyes" ; then
 AC_DEFINE([PCP_DISABLE_NATPMP_SUPPORT],1,[disable NATPMP support])
+AC_DEFINE([PCP_MIN_SUPPORTED_VERSION],1,[Minimal PCP version to use])
+else
+AC_DEFINE([PCP_MIN_SUPPORTED_VERSION],0,[Minimal PCP version to use])
 fi
+AC_DEFINE([PCP_MAX_SUPPORTED_VERSION],2,[Maximal PCP version to use])
 
 AC_ARG_ENABLE([flow-priority],
               [AS_HELP_STRING([--enable-flow-priority],[enable flow priority option support])],
@@ -171,6 +176,14 @@ if test "x$enable_ipv6" = "xyes" ; then
 AC_DEFINE([PCP_USE_IPV6_SOCKET],1,[use IPv6 socket])
 fi
 AM_CONDITIONAL([PCP_USE_IPV6_SOCKET],[test "x$enable_ipv6" = "xyes"])
+
+AC_DEFINE([PCP_SERVER_PORT], 5351, [Default PCP server port])
+AC_DEFINE([PCP_MAX_PING_COUNT], 3, [Maximum number of ping attempts])
+AC_DEFINE([PCP_SERVER_DISCOVERY_RETRY_DELAY], 3600, [Server discovery retry delay])
+AC_DEFINE([PCP_RETX_IRT], 3000, [Initial retransmission time])
+AC_DEFINE([PCP_RETX_MRC], 3, [Maximum retransmission count (0 indicates no maximum)])
+AC_DEFINE([PCP_RETX_MRT], 1024000, [Maximum retransmission time])
+AC_DEFINE([PCP_RETX_MRD], 0, [Maximum retransmission duration (0 indicates no maximum)])
 
 AC_PROG_LIBTOOL
 
