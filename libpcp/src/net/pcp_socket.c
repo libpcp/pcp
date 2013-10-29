@@ -138,7 +138,7 @@ pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport,
 }
 
 #ifndef PCP_SOCKET_IS_VOIDPTR
-static pcp_errno pcp_get_error() {
+static pcp_errno pcp_get_error(void) {
 #ifdef WIN32
     int errnum = WSAGetLastError();
     switch (errnum) {
@@ -279,7 +279,7 @@ ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len,
     }
 #ifndef PCP_SOCKET_IS_VOIDPTR
     ret = sendto(ctx->socket, buf, len, 0, dest_addr, addrlen);
-    if ((ret==PCP_SOCKET_ERROR) || (ret!=len)) {
+    if ((ret==PCP_SOCKET_ERROR) || ((size_t)ret!=len)) {
         if (pcp_get_error() == PCP_ERR_WOULDBLOCK) {
             ret=PCP_ERR_WOULDBLOCK;
         } else {

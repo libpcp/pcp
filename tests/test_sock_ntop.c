@@ -29,7 +29,7 @@
 #include "gateway.h"
 #include "pcp_socket.h"
 
-int main(int argc, char** argv)
+int main(void)
 {
     struct sockaddr_storage sa;
     int prefix;

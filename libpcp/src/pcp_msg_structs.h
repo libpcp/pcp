@@ -70,13 +70,13 @@ typedef enum pcp_options {
 #pragma pack(push,1)
 
 #ifndef MAX_USER_ID
-#define MAX_USER_ID 512
+#define MAX_USER_ID 512u
 #endif
 #ifndef MAX_DEViCE_ID_STR
-#define MAX_DEVICE_ID 32
+#define MAX_DEVICE_ID 32u
 #endif
 #ifndef MAX_GEO_STR
-#define MAX_GEO_STR 32
+#define MAX_GEO_STR 32u
 #endif
 
 /* PCP common request header*/

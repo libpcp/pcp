@@ -32,7 +32,8 @@
 #include "test_macro.h"
 #include "pcp_socket.h"
 
-int main(int argc, char *argv[]) {
+int main(void)
+{
     struct sockaddr_storage destination;
     struct sockaddr_storage source;
     struct sockaddr_storage ext;

@@ -31,7 +31,7 @@
 #include "pcp_socket.h"
 #include "test_macro.h"
 
-void test_getgateways()
+static void test_getgateways(void)
 {
     struct in6_addr *gws=NULL, *gw;
     struct in_addr;
@@ -49,7 +49,7 @@ void test_getgateways()
     TEST(getgateways(NULL)<0)
 }
 
-void test_sa_len()
+static void test_sa_len(void)
 {
     struct sockaddr sa;
 
@@ -66,7 +66,7 @@ void test_sa_len()
     TEST(SA_LEN(&sa) == sizeof(struct sockaddr));
 }
 
-int main()
+int main(void)
 {
     PD_SOCKET_STARTUP();
 

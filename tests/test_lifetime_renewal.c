@@ -34,7 +34,7 @@
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
 
-pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
+static pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
 {
     fd_set read_fds;
     int fdmax;
@@ -88,7 +88,7 @@ pcp_fstate_e test_wait(pcp_flow_t* flow, int timeout)
 }
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[] UNUSED) {
 
     struct sockaddr_in destination_ip4;
     struct sockaddr_in source_ip4;
@@ -97,9 +97,9 @@ int main(int argc, char *argv[]) {
     time_t cur_time;
     pcp_flow_t* flow = NULL;
 
-    char* dest_ip = "0.0.0.0";
-    char* src_ip = "127.0.0.1";
-    char* ext_ip = "10.20.30.40";
+    const char* dest_ip = "0.0.0.0";
+    const char* src_ip = "127.0.0.1";
+    const char* ext_ip = "10.20.30.40";
     uint16_t dest_port = 1234;
     uint16_t src_port = 1235;
     uint8_t protocol = 6;

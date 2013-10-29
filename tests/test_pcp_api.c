@@ -25,7 +25,7 @@
 #include "unp.h"
 #include "pcp_socket.h"
 
-int main()
+int main(void)
 {
     pcp_flow_t *f1, *f2;
     pcp_ctx_t *ctx;

@@ -43,7 +43,7 @@ uint8_t status;
 
 pcp_flow_t* flow = NULL;
 
-void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
+static void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
         pcp_fstate_e s, void* cb_arg)
 {
     TEST(1==(status = ((f==flow) && (src_addr->sa_family == AF_INET))));
@@ -61,8 +61,8 @@ void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_
     TEST(cb_arg==NULL);
 }
 
-void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-        pcp_fstate_e s, void* cb_arg)
+static void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr,
+    struct sockaddr* ext_addr UNUSED, pcp_fstate_e s, void* cb_arg)
 {
     status = 0;
     TEST((f==flow) && (src_addr->sa_family == AF_INET6));
@@ -78,7 +78,7 @@ void notify_cb_2(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_
     status =1;
 }
 
-int select_loop(pcp_ctx_t *ctx)
+static int select_loop(pcp_ctx_t *ctx)
 {
     fd_set read_fds;
     int fdmax = 0;
@@ -116,7 +116,7 @@ int select_loop(pcp_ctx_t *ctx)
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[] UNUSED) {
     struct sockaddr_storage destination;
     struct sockaddr_storage source;
     struct sockaddr_storage ext;

@@ -234,7 +234,8 @@ pcp_errno pcp_db_foreach_flow(pcp_ctx_t* ctx, pcp_db_flow_iterate f, void* data)
 }
 
 #ifdef PCP_EXPERIMENTAL
-void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len)
+void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, const void* val,
+    size_t val_len)
 {
     md_val_t * md;
     uint32_t i;

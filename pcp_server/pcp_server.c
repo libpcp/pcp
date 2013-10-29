@@ -78,7 +78,7 @@
 #define PCP_PORT "5351"
 #define PCP_TEST_MAX_VERSION 2
 
-#define MAX_LOG_FILE 64
+#define MAX_LOG_FILE 64u
 
 typedef struct options_occur {
     int third_party_occur;
@@ -96,7 +96,7 @@ typedef struct server_info {
     time_t epoch_time_start;
 } server_info_t;
 
-void reset_option_occur(options_occur_t *opt_occ)
+static void reset_option_occur(options_occur_t *opt_occ)
 {
 
     opt_occ->third_party_occur = 0;
@@ -105,7 +105,7 @@ void reset_option_occur(options_occur_t *opt_occ)
 }
 
 // get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
+static void *get_in_addr(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET) {
         return &(((struct sockaddr_in*) sa)->sin_addr);
@@ -114,7 +114,8 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*) sa)->sin6_addr);
 }
 
-PCP_SOCKET createPCPsocket(char* serverPort, char* serverAddress)
+static PCP_SOCKET createPCPsocket(const char* serverPort,
+    const char* serverAddress)
 {
     PCP_SOCKET sockfd;
     struct addrinfo hints, *servinfo, *p;
@@ -163,7 +164,7 @@ PCP_SOCKET createPCPsocket(char* serverPort, char* serverAddress)
     return sockfd;
 }
 
-void print_MAP_opcode_ver1(pcp_map_v1_t *map_buf, FILE *log_file)
+static void print_MAP_opcode_ver1(pcp_map_v1_t *map_buf, FILE *log_file)
 {
     char map_addr[INET6_ADDRSTRLEN];
     DUPPRINT(log_file,"PCP protocol VERSION 1. \n");
@@ -174,7 +175,7 @@ void print_MAP_opcode_ver1(pcp_map_v1_t *map_buf, FILE *log_file)
             inet_ntop(AF_INET6, map_buf->ext_ip, map_addr, INET6_ADDRSTRLEN));
 }
 
-void print_MAP_opcode_ver2(pcp_map_v2_t *map_buf, FILE *log_file)
+static void print_MAP_opcode_ver2(pcp_map_v2_t *map_buf, FILE *log_file)
 {
     char map_addr[INET6_ADDRSTRLEN];
     DUPPRINT(log_file,"PCP protocol VERSION 2. \n");
@@ -185,7 +186,7 @@ void print_MAP_opcode_ver2(pcp_map_v2_t *map_buf, FILE *log_file)
             inet_ntop(AF_INET6, map_buf->ext_ip, map_addr, INET6_ADDRSTRLEN));
 }
 
-void print_PEER_opcode_ver1(pcp_peer_v1_t *peer_buf, FILE *log_file)
+static void print_PEER_opcode_ver1(pcp_peer_v1_t *peer_buf, FILE *log_file)
 {
 
     char ext_addr[INET6_ADDRSTRLEN];
@@ -204,7 +205,7 @@ void print_PEER_opcode_ver1(pcp_peer_v1_t *peer_buf, FILE *log_file)
 
 }
 
-void print_PEER_opcode_ver2(pcp_peer_v2_t *peer_buf, FILE *log_file)
+static void print_PEER_opcode_ver2(pcp_peer_v2_t *peer_buf, FILE *log_file)
 {
 
     char ext_addr[INET6_ADDRSTRLEN];
@@ -231,7 +232,8 @@ void print_PEER_opcode_ver2(pcp_peer_v2_t *peer_buf, FILE *log_file)
 
 }
 
-int print_SADSCP_opcode_ver2(pcp_sadscp_req_t *sadscp_buf, FILE *log_file)
+static int print_SADSCP_opcode_ver2(pcp_sadscp_req_t *sadscp_buf,
+    FILE *log_file)
 {
 
     DUPPRINT(log_file,"PCP protocol VERSION 2. \n");
@@ -248,8 +250,8 @@ int print_SADSCP_opcode_ver2(pcp_sadscp_req_t *sadscp_buf, FILE *log_file)
     return sizeof(pcp_sadscp_req_t) + sadscp_buf->app_name_length;
 }
 
-int print_PCP_options(void* pcp_buf, int* remainingSize, int* processedSize,
-        options_occur_t *opt_occ, FILE *log_file)
+static int print_PCP_options(void* pcp_buf, int* remainingSize,
+    int* processedSize, options_occur_t *opt_occ, FILE *log_file)
 {
 
     int remain = *remainingSize;
@@ -412,7 +414,7 @@ int print_PCP_options(void* pcp_buf, int* remainingSize, int* processedSize,
  * return value indicates whether the request is valid or not.
  * Based on the return value simple response can be formed.
  */
-int printPCPreq(void * req, int req_size, options_occur_t *opt_occ,
+static int printPCPreq(void * req, int req_size, options_occur_t *opt_occ,
         uint8_t version, const char *server_log_file)
 {
     // while request is being printed we can set analyze it as well, and decide
@@ -563,7 +565,8 @@ int printPCPreq(void * req, int req_size, options_occur_t *opt_occ,
 
             pcp_sadscp_req_t* sadscp;
             size_t sadscp_size;
-            if (remainingSize - sizeof(pcp_sadscp_req_t) < 0) {
+
+            if (remainingSize < (int)sizeof(pcp_sadscp_req_t)) {
                 return PCP_RES_MALFORMED_REQUEST;
             }
 
@@ -586,7 +589,7 @@ int printPCPreq(void * req, int req_size, options_occur_t *opt_occ,
     return pcp_return_val;
 }
 
-int create_response(char *request, int pcp_result_code,
+static int create_response(char *request, int pcp_result_code,
         const server_info_t *server_info)
 {
 
@@ -613,7 +616,7 @@ int create_response(char *request, int pcp_result_code,
     return 0;
 }
 
-static int execPCPServer(char* serverPort, char* serverAddress,
+static int execPCPServer(const char* serverPort, const char* serverAddress,
         const server_info_t *server_info)
 {
     PCP_SOCKET sockfd;
@@ -723,7 +726,7 @@ static int execPCPServer(char* serverPort, char* serverAddress,
     return 0;
 }
 
-void print_usage(void)
+static void print_usage(void)
 {
 
     printf("\n");
@@ -762,7 +765,7 @@ void print_usage(void)
 int main(int argc, char *argv[])
 {
 
-    char *port = PCP_PORT;
+    const char *port = PCP_PORT;
     int test_port;
     uint8_t pcp_version = PCP_TEST_MAX_VERSION;
     uint8_t end_after_recv = 0;
@@ -773,7 +776,7 @@ int main(int argc, char *argv[])
     suseconds_t timeout_us = 0;
 #endif
     server_info_t server_info_storage;
-    char *server_ip = "0.0.0.0";
+    const char *server_ip = "0.0.0.0";
     uint8_t app_bit = 0;
     uint8_t ret_dscp = 0;
     char *log_file = NULL;

@@ -33,15 +33,16 @@
 #include "pcp_logger.h"
 #include "unp.h"
 #include "test_macro.h"
+#include "pcp_utils.h"
 
-int print_status(pcp_server_t* s, void* data)
+static int print_status(pcp_server_t* s, void* data UNUSED)
 {
     pcp_logger(PCP_DEBUG_INFO, "Server index %d, addr %s, status: %d",
         s->index, s->pcp_server_paddr, s->server_state);
     return 0;
 }
 
-int main(int argc, char* argv[])
+int main(void)
 {
     pcp_flow_t* f;
     pcp_fstate_e ret;

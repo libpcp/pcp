@@ -31,7 +31,7 @@ void fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
         struct sockaddr* src);
 
 int
-main(int argc, char **argv)
+main(void)
 {
     struct sockaddr_in sa, sa2;
     int ret = 0;

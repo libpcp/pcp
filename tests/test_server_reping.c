@@ -37,7 +37,8 @@
 #include "test_macro.h"
 
 
-int main(int argc, char *argv[]) {
+int main(void)
+{
     pcp_server_t *s = NULL;
     struct sockaddr_storage source_ip4;
     uint8_t protocol = 6;

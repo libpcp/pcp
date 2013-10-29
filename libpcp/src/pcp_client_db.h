@@ -236,7 +236,8 @@ pcp_errno pcp_db_foreach_flow(pcp_ctx_t* ctx, pcp_db_flow_iterate f, void* data)
 void pcp_flow_clear_msg_buf(pcp_flow_t* f);
 
 #ifdef PCP_EXPERIMENTAL
-void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, void* val, size_t val_len);
+void pcp_db_add_md(pcp_flow_t* f, uint16_t md_id, const void* val,
+    size_t val_len);
 #endif
 
 int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port);

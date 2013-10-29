@@ -69,18 +69,19 @@ typedef struct pcp_location_option *pcp_location_option_p;
 /* DEBUG levels */
 typedef enum {
     PCP_DEBUG_NONE = 0,
-#define PCP_DEBUG_NONE  PCP_DEBUG_NONE
     PCP_DEBUG_ERR = 1,
-#define PCP_DEBUG_ERR   PCP_DEBUG_ERR
     PCP_DEBUG_WARN = 2,
-#define PCP_DEBUG_WARN  PCP_DEBUG_WARN
     PCP_DEBUG_INFO = 3,
-#define PCP_DEBUG_INFO  PCP_DEBUG_INFO
     PCP_DEBUG_PERR = 4,
-#define PCP_DEBUG_PERR  PCP_DEBUG_PERR
     PCP_DEBUG_DEBUG = 5
-#define PCP_DEBUG_DEBUG PCP_DEBUG_DEBUG
 } pcp_debug_mode_t;
+
+#define PCP_DEBUG_NONE  0
+#define PCP_DEBUG_ERR   1
+#define PCP_DEBUG_WARN  2
+#define PCP_DEBUG_INFO  3
+#define PCP_DEBUG_PERR  4
+#define PCP_DEBUG_DEBUG 5
 
 typedef enum {
     PCP_ERR_SUCCESS = 0,
@@ -212,7 +213,7 @@ void pcp_flow_set_prefer_failure_opt (pcp_flow_t* f);
 // create new PCP message with SADSCP opcode. It's used to learn
 // correct DSCP values to get desired flow treatment by router.
 pcp_flow_t* pcp_learn_dscp(pcp_ctx_t* ctx, uint8_t delay_tol, uint8_t loss_tol,
-uint8_t jitter_tol, char* app_name);
+    uint8_t jitter_tol, const char* app_name);
 #endif
 
 /*

@@ -32,12 +32,13 @@
 #include "pcp_client_db.h"
 #include "unp.h"
 #include "test_macro.h"
+#include "pcp_utils.h"
 
 pcp_flow_t* flow_to_wait=NULL;
 uint32_t notified = 0;
 
-void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_addr,
-        pcp_fstate_e s, void* cb_arg)
+static void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr UNUSED,
+    struct sockaddr* ext_addr UNUSED, pcp_fstate_e s, void* cb_arg UNUSED)
 {
     if ((f==flow_to_wait)&&(s==pcp_state_succeeded)) {
         notified = 1;
@@ -45,7 +46,8 @@ void notify_cb_1(pcp_flow_t* f, struct sockaddr* src_addr, struct sockaddr* ext_
     sleep(1);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[] UNUSED)
+{
 
     struct sockaddr_storage destination1_ip4;
     struct sockaddr_storage source1_ip4;

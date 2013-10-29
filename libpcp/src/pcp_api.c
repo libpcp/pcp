@@ -341,7 +341,7 @@ struct caasi_data {
     struct sockaddr* ext_addr;
     struct in6_addr* src_ip;
     uint8_t toler_fields;
-    char* app_name;
+    const char* app_name;
     void* userdata;
 };
 
@@ -721,7 +721,7 @@ void* pcp_flow_get_user_data(pcp_flow_t* f)
 
 #ifdef PCP_SADSCP
 pcp_flow_t* pcp_learn_dscp(pcp_ctx_t* ctx, uint8_t delay_tol, uint8_t loss_tol,
-                           uint8_t jitter_tol, char* app_name)
+     uint8_t jitter_tol, const char* app_name)
 {
     struct flow_key_data kd;
     struct caasi_data data;

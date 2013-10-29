@@ -23,17 +23,17 @@
 #include "test_macro.h"
 #include "pcp_utils.h"
 
-int ret_0_func(pcp_server_t *f, void* data)
+static int ret_0_func(pcp_server_t *f UNUSED, void* data UNUSED)
 {
     return 0;
 }
 
-int ret_1_func(pcp_server_t *f, void* data)
+static int ret_1_func(pcp_server_t *f UNUSED, void* data UNUSED)
 {
     return 1;
 }
 
-void test_pcp_server_functions(pcp_ctx_t *ctx)
+static void test_pcp_server_functions(pcp_ctx_t *ctx)
 {
     struct in6_addr ip4;
 #ifdef PCP_USE_IPV6_SOCKET
@@ -86,11 +86,11 @@ void test_pcp_server_functions(pcp_ctx_t *ctx)
 
     sret=get_pcp_server_by_ip(ctx, &ip6);
     TEST(sret!=NULL);
-    TEST(si2==sret->index);
+    TEST(si2==(int)sret->index);
 #endif
     sret=get_pcp_server_by_ip(ctx, &ip4);
     TEST(sret!=NULL);
-    TEST(si1==sret->index);
+    TEST(si1==(int)sret->index);
 
     pcp_db_free_pcp_servers(ctx);
 
@@ -118,13 +118,13 @@ void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST(pcp_db_foreach_server(ctx, ret_1_func, NULL)==0);
 }
 
-int ret_func(pcp_flow_t* f, void*data)
+static int ret_func(pcp_flow_t* f, void*data)
 {
     *(pcp_flow_t**)data=f;
     return 1;
 }
 
-void test_pcp_flow_funcs(pcp_ctx_t *ctx)
+static void test_pcp_flow_funcs(pcp_ctx_t *ctx)
 {
     pcp_flow_t *f1, *f2, *f3;
     uint32_t bucket, cnt;
@@ -223,7 +223,7 @@ void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     TEST(cnt==3);
 }
 
-int main()
+int main(void)
 {
     pcp_ctx_t *ctx;
     PD_SOCKET_STARTUP();

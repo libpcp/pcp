@@ -49,6 +49,7 @@
 #include <ws2ipdef.h>
 #include "pcp_win_defines.h"
 #include "unp.h"
+#include "pcp_utils.h"
 
 // function calling WSAStartup (used in pcp-server and pcp_app)
 static int pcp_win_sock_startup() {
@@ -116,8 +117,6 @@ char *ctime_r(const time_t *timep, char *buf)
 #define PD_SOCKET_CLEANUP()
 
 #endif // WIN32
-
-#define SERVERPORT "5351"
 
 #ifndef no_argument
 #define no_argument 0
@@ -252,11 +251,11 @@ typedef enum {
      FOREACH_OPTION(ENUM_OPTION, ARG_IGNORE, SHORT_OPT_REQARG, SHORT_OPT_NOARG)
 } e_options;
 
-void print_usage(void){
+static void print_usage(void){
     printf(usage_string);
 }
 
-const char* decode_fresult(pcp_fstate_e s)
+static const char* decode_fresult(pcp_fstate_e s)
 {
     switch (s) {
     case pcp_state_short_lifetime_error:
@@ -270,7 +269,7 @@ const char* decode_fresult(pcp_fstate_e s)
     }
 }
 
-int check_flow_info(pcp_flow_t* f)
+static int check_flow_info(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
@@ -304,7 +303,7 @@ int check_flow_info(pcp_flow_t* f)
     return ret_val;
 }
 
-void print_ext_addr(pcp_flow_t* f)
+static void print_ext_addr(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
@@ -345,7 +344,7 @@ void print_ext_addr(pcp_flow_t* f)
     }
 }
 
-void print_get_dscp(pcp_flow_t* f)
+static void print_get_dscp(pcp_flow_t* f)
 {
     size_t cnt=0;
      pcp_flow_info_t *info_buf = NULL;
@@ -379,7 +378,6 @@ struct pcp_server_list {
 
 // CLI options
 struct pcp_params {
-    char *port;
     char *hostname;
     char *int_addr;
     char *ext_addr;
@@ -417,7 +415,7 @@ struct pcp_params {
     struct pcp_server_list *pcp_servers;
 };
 
-void parse_params(struct pcp_params *p, int argc, char *argv[]);
+static void parse_params(struct pcp_params *p, int argc, char *argv[]);
 
 
 static inline unsigned long mix(unsigned long a, unsigned long b, unsigned long c)
@@ -592,18 +590,18 @@ int main(int argc, char *argv[])
     return ret_val;
 }
 
-void static inline parse_opt_help(struct pcp_params *p)
+static inline void parse_opt_help(struct pcp_params *p UNUSED)
 {
     print_usage();
     exit(0);
 }
 
-void static inline parse_opt_fast_ret(struct pcp_params *p)
+static inline void parse_opt_fast_ret(struct pcp_params *p)
 {
     p->fast_return=1;
 }
 
-void static inline parse_opt_server(struct pcp_params *p)
+static inline void parse_opt_server(struct pcp_params *p)
 {
     struct pcp_server_list* l ;
     l = (struct pcp_server_list*)malloc(sizeof(*l));
@@ -615,7 +613,7 @@ void static inline parse_opt_server(struct pcp_params *p)
      }
 }
 
-void static inline parse_opt_version(struct pcp_params *p)
+static inline void parse_opt_version(struct pcp_params *p)
 {
     p->pcp_version = (uint8_t)atoi(optarg);
     //check if the version entered is supported or not
@@ -625,66 +623,66 @@ void static inline parse_opt_version(struct pcp_params *p)
     }
 }
 
-void static inline parse_opt_disdisc(struct pcp_params *p)
+static inline void parse_opt_disdisc(struct pcp_params *p)
 {
     p->dis_auto_discovery=1;
 }
 
-void static inline parse_opt_timeout(struct pcp_params *p)
+static inline void parse_opt_timeout(struct pcp_params *p)
 {
     p->timeout = atoi(optarg) * 1000;
 }
 
-void static inline parse_opt_int(struct pcp_params *p)
+static inline void parse_opt_int(struct pcp_params *p)
 {
     p->int_addr=optarg;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_peer(struct pcp_params *p)
+static inline void parse_opt_peer(struct pcp_params *p)
 {
     p->peer_addr=optarg;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_ext(struct pcp_params *p)
+static inline void parse_opt_ext(struct pcp_params *p)
 {
     p->ext_addr=optarg;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_tcp(struct pcp_params *p)
+static inline void parse_opt_tcp(struct pcp_params *p)
 {
     p->opt_protocol=IPPROTO_TCP;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_udp(struct pcp_params *p)
+static inline void parse_opt_udp(struct pcp_params *p)
 {
     p->opt_protocol=IPPROTO_UDP;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_prot(struct pcp_params *p)
+static inline void parse_opt_prot(struct pcp_params *p)
 {
     p->opt_protocol=atoi(optarg);
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_lifetime(struct pcp_params *p)
+static inline void parse_opt_lifetime(struct pcp_params *p)
 {
     p->opt_lifetime = (uint32_t)atoi(optarg);
 }
 
 #ifdef PCP_FLOW_PRIORITY
-void static inline parse_opt_dscp_up(struct pcp_params *p)
+static inline void parse_opt_dscp_up(struct pcp_params *p)
 {
     p->opt_dscp_up=(uint8_t)atoi(optarg);
     p->opt_flowp = 1;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_dscp_down(struct pcp_params *p)
+static inline void parse_opt_dscp_down(struct pcp_params *p)
 {
     p->opt_dscp_down=(uint8_t)atoi(optarg);
     p->opt_flowp = 1;
@@ -693,14 +691,14 @@ void static inline parse_opt_dscp_down(struct pcp_params *p)
 #endif
 
 #ifdef PCP_EXPERIMENTAL
-void static inline parse_opt_md_id(struct pcp_params *p)
+static inline void parse_opt_md_id(struct pcp_params *p)
 {
     p->opt_mdid = (uint32_t)atoi(optarg);
     p->is_md = 1;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_md_val(struct pcp_params *p)
+static inline void parse_opt_md_val(struct pcp_params *p)
 {
     p->opt_md_val_len = (optarg==NULL)?0:strlen(optarg);
     if (p->opt_md_val_len > sizeof(p->opt_md_val)) {
@@ -711,7 +709,7 @@ void static inline parse_opt_md_val(struct pcp_params *p)
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_dev_id(struct pcp_params *p)
+static inline void parse_opt_dev_id(struct pcp_params *p)
 {
 #ifndef WIN32
     struct utsname sysinfo;
@@ -749,7 +747,7 @@ void static inline parse_opt_dev_id(struct pcp_params *p)
 #endif //WIN32
 }
 
-void static inline parse_opt_location(struct pcp_params *p)
+static inline void parse_opt_location(struct pcp_params *p)
 {
  /*
   *    Latitude and Longitude in Degrees:
@@ -763,46 +761,46 @@ void static inline parse_opt_location(struct pcp_params *p)
     fprintf(stderr, "Location: %s \n", &(p->app_location.location[0]));
 }
 
-void static inline parse_opt_user_id(struct pcp_params *p)
+static inline void parse_opt_user_id(struct pcp_params *p)
 {
     strncpy(p->app_userid.userid, optarg, sizeof(p->app_userid.userid));
     fprintf(stderr, "Userid: %s \n", &(p->app_userid.userid[0]));
 }
 
 #endif
-void static inline parse_opt_filter(struct pcp_params *p)
+static inline void parse_opt_filter(struct pcp_params *p)
 {
     p->filter_addr=optarg;
     p->opt_filter = 1;
     p->has_mappeer_data = 1;
 }
 
-void static inline parse_opt_pfailure(struct pcp_params *p)
+static inline void parse_opt_pfailure(struct pcp_params *p)
 {
     p->opt_pfailure = 1;
     p->has_mappeer_data = 1;
 }
 
 #ifdef PCP_SADSCP
-void static inline parse_opt_sadscp_jit(struct pcp_params *p)
+static inline void parse_opt_sadscp_jit(struct pcp_params *p)
 {
     p->jitter_tolerance=(uint8_t)atoi(optarg);
     p->has_sadscp_data=1;
 }
 
-void static inline parse_opt_sadscp_los(struct pcp_params *p)
+static inline void parse_opt_sadscp_los(struct pcp_params *p)
 {
     p->loss_tolerance=(uint8_t)atoi(optarg);
     p->has_sadscp_data=1;
 }
 
-void static inline parse_opt_sadscp_del(struct pcp_params *p)
+static inline void parse_opt_sadscp_del(struct pcp_params *p)
 {
     p->delay_tolerance=(uint8_t)atoi(optarg);
     p->has_sadscp_data=1;
 }
 
-void static inline parse_opt_sadscp_app(struct pcp_params *p)
+static inline void parse_opt_sadscp_app(struct pcp_params *p)
 {
     p->app_name=optarg;
     p->has_sadscp_data=1;
@@ -813,14 +811,13 @@ void static inline parse_opt_sadscp_app(struct pcp_params *p)
     parse_opt_##B(p);\
 } else
 
-void parse_params(struct pcp_params *p, int argc, char *argv[])
+static void parse_params(struct pcp_params *p, int argc, char *argv[])
 {
     int c;
     int option_index = 0;
 
     memset(p, 0, sizeof(*p));
 
-    p->port=SERVERPORT;
     p->opt_protocol = 6;
     p->opt_lifetime = 900;
     p->pcp_version = PCP_MAX_SUPPORTED_VERSION;
