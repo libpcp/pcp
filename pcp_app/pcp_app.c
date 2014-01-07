@@ -356,7 +356,7 @@ static void print_get_dscp(pcp_flow_t* f)
      for (; cnt>0; cnt--, ret++) {
          char ntop_buff[INET6_ADDRSTRLEN];
          char timebuf[32];
-         printf("%-20s %5hu %3d %5s %s",
+         printf("%-20s %5u %3d %5s %s",
                  inet_ntop(AF_INET6, &ret->int_ip, ntop_buff,
                      sizeof(ntop_buff)),
                  ret->learned_dscp,
