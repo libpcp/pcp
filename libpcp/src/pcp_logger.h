@@ -40,6 +40,8 @@ void pcp_logger(pcp_loglvl_e log_level, const char* fmt, ...);
 
 #else
 
+void pcp_logger_init(void);
+
 void pcp_logger(pcp_loglvl_e log_level, const char* fmt, ...)
         __attribute__((format(printf, 2, 3)));
 

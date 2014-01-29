@@ -47,6 +47,18 @@
 #endif //_MSC_VER
 pcp_loglvl_e pcp_log_level=PCP_MAX_LOG_LEVEL;
 
+void pcp_logger_init(void)
+{
+    char *env, *ret;
+
+    if ((env=getenv("PCP_LOG_LEVEL"))) {
+        long lvl=strtol(env, &ret, 0);
+        if ((ret) && (!*ret) && (lvl>=0) && (lvl<=PCP_MAX_LOG_LEVEL)) {
+            pcp_log_level=lvl;
+        }
+    }
+}
+
 static void default_logfn(pcp_loglvl_e mode, const char *msg)
 {
 

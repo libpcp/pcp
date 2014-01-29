@@ -94,6 +94,8 @@ pcp_ctx_t *pcp_init(uint8_t autodiscovery, pcp_socket_vt_t *socket_vt)
 {
     pcp_ctx_t *ctx=(pcp_ctx_t *)calloc(1, sizeof(pcp_ctx_t));
 
+    pcp_logger_init();
+
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
 
     if (!ctx) {
