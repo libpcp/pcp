@@ -52,7 +52,6 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST(get_pcp_server(ctx, 0)==NULL);
     TEST(get_pcp_server(ctx, -1)==NULL);
     si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
-    TEST(get_pcp_server(NULL, si1)==NULL);
     TEST(si1 == 0);
     s1=get_pcp_server(ctx, si1);
     TEST(s1!=NULL);
@@ -112,8 +111,6 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST((s2->af==AF_INET6)&&(IN6_ARE_ADDR_EQUAL(&ip6, (struct in6_addr*)s2->pcp_ip)));
     TEST(get_pcp_server(ctx, 5)==NULL);
 #endif
-    TEST(pcp_db_foreach_server(NULL, NULL, NULL)==PCP_ERR_BAD_ARGS);
-    TEST(pcp_db_foreach_server(ctx, NULL, NULL)==PCP_ERR_BAD_ARGS);
     TEST(pcp_db_foreach_server(ctx, ret_0_func, NULL)==PCP_ERR_MAX_SIZE);
     TEST(pcp_db_foreach_server(ctx, ret_1_func, NULL)==0);
 }
@@ -139,7 +136,6 @@ static void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     fkd2.map_peer.protocol = 1;
     fkd2.map_peer.dst_port++;
 
-    TEST(pcp_create_flow(get_pcp_server(ctx, 0), NULL)==NULL);
     f1 = pcp_create_flow(get_pcp_server(ctx, 0), &fkd);
     TEST(f1!=NULL);
     TEST(pcp_db_add_flow(f1)== PCP_ERR_SUCCESS);
@@ -161,11 +157,7 @@ static void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     TEST(pcp_db_add_flow(pcp_create_flow(get_pcp_server(ctx, 0), &fkd))== PCP_ERR_SUCCESS);
     TEST(pcp_db_add_flow(pcp_create_flow(get_pcp_server(ctx, 0), &fkd2))== PCP_ERR_SUCCESS);
     TEST(pcp_db_add_flow(pcp_create_flow(get_pcp_server(ctx, 0), &fkd2))== PCP_ERR_SUCCESS);
-    TEST(pcp_db_rem_flow(NULL)!=PCP_ERR_SUCCESS);
     TEST(pcp_db_rem_flow(f2)==PCP_ERR_SUCCESS);
-
-    f2 = pcp_create_flow(NULL, &fkd);
-    TEST(f2==NULL);
 
     f2 = pcp_create_flow(get_pcp_server(ctx, 0), &fkd);
     TEST(f2!=NULL);
@@ -177,8 +169,6 @@ static void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     TEST(pcp_db_rem_flow(f2)==PCP_ERR_SUCCESS);
     TEST(pcp_db_rem_flow(f2)!=PCP_ERR_SUCCESS);
     TEST((f2->pcp_msg_buffer!=NULL)&&(f2->pcp_msg_len==10));
-
-    TEST(pcp_delete_flow_intern(NULL)!=PCP_ERR_SUCCESS);
 
     TEST(pcp_get_flow(&fkd, get_pcp_server(ctx, 0))==f1);
     TEST(pcp_get_flow(&fkd, get_pcp_server(ctx, 1))==NULL);
@@ -205,15 +195,11 @@ static void test_pcp_flow_funcs(pcp_ctx_t *ctx)
     pcp_db_add_md(f1, 13, "atest", sizeof("atest"));
     pcp_db_add_md(f1, 13,NULL,0);
     pcp_db_add_md(f1, 0,NULL,0);
-    pcp_db_add_md(NULL,0,NULL,0);
     TEST(f1->md_val_count==3);
 #endif
 
     TEST(pcp_delete_flow_intern(f1)==PCP_ERR_SUCCESS);
     TEST(pcp_delete_flow_intern(f2)==PCP_ERR_SUCCESS);
-
-    TEST(pcp_db_foreach_flow(ctx, NULL,NULL)!=PCP_ERR_SUCCESS);
-    TEST(pcp_db_foreach_flow(NULL,NULL,NULL)!=PCP_ERR_SUCCESS);
 
     while (pcp_db_foreach_flow(ctx, ret_func, &f1)==PCP_ERR_SUCCESS)
     {
@@ -227,7 +213,7 @@ int main(void)
 {
     pcp_ctx_t *ctx;
     PD_SOCKET_STARTUP();
-    pcp_log_level = PCP_DEBUG_NONE;
+    pcp_log_level = PCP_LOGLVL_NONE;
     ctx = pcp_init(0, NULL);
     TEST(ctx!=NULL);
     test_pcp_server_functions(ctx);

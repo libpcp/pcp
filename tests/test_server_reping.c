@@ -47,7 +47,7 @@ int main(void)
     pcp_ctx_t *ctx;
 
     PD_SOCKET_STARTUP();
-    pcp_log_level = PCP_DEBUG_DEBUG;
+    pcp_log_level = PCP_LOGLVL_DEBUG;
 
     printf("\n");
     printf("#############################################\n");

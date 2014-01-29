@@ -45,7 +45,7 @@ int main(void)
     pcp_flow_t* flow = NULL;
 
     PD_SOCKET_STARTUP();
-    pcp_log_level = PCP_DEBUG_DEBUG;
+    pcp_log_level = PCP_LOGLVL_DEBUG;
 
     TEST((ctx=pcp_init(0, NULL)));
     TEST(pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2)==0);

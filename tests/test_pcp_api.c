@@ -30,7 +30,7 @@ int main(void)
     pcp_flow_t *f1, *f2;
     pcp_ctx_t *ctx;
 
-    pcp_log_level = PCP_DEBUG_NONE;
+    pcp_log_level = PCP_LOGLVL_NONE;
 
     PD_SOCKET_STARTUP();
     //test pcp_init & terminate
@@ -81,7 +81,7 @@ int main(void)
 
     pcp_pulse(NULL, NULL);
     pcp_pulse(ctx, NULL);
-    pcp_flow_get_info(NULL, NULL, NULL);
+    pcp_flow_get_info(NULL, NULL);
 
     //PCP PEER/MAP tests
     TEST(pcp_new_flow(NULL, NULL, NULL, NULL, 0, 0, NULL)==NULL);

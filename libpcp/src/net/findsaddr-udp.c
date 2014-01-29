@@ -47,7 +47,6 @@
 #include "findsaddr.h"
 #include "unp.h"
 
-
 /*
  * Return the source address for the given destination address.
  *
@@ -69,53 +68,50 @@
 #define INVALID_SOCKET -1
 #endif
 
-const char *
-findsaddr(register const struct sockaddr_in *to,
-    struct in6_addr *from)
+const char *findsaddr(register const struct sockaddr_in *to,
+        struct in6_addr *from)
 {
     const char *errstr;
     struct sockaddr_in cto, cfrom;
     SOCKET s;
     socklen_t len;
 
-    s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s == INVALID_SOCKET) //LCOV_EXCL_START
+    s=socket(AF_INET, SOCK_DGRAM, 0);
+    if (s == INVALID_SOCKET)
         return ("failed to open DGRAM socket for src addr selection.");
-//LCOV_EXCL_STOP
-    errstr = NULL;
-    len = sizeof(struct sockaddr_in);
+    errstr=NULL;
+    len=sizeof(struct sockaddr_in);
     memcpy(&cto, to, len);
-    cto.sin_port = htons(65535);    /* Dummy port for connect(2). */
+    cto.sin_port=htons(65535); /* Dummy port for connect(2). */
     if (connect(s, (struct sockaddr *)&cto, len) == -1) {
-        errstr = "failed to connect to peer for src addr selection."; //LCOV_EXCL_START
+        errstr="failed to connect to peer for src addr selection.";
         goto err;
-    }//LCOV_EXCL_STOP
+    }
 
     if (getsockname(s, (struct sockaddr *)&cfrom, &len) == -1) {
-        errstr = "failed to get socket name for src addr selection."; //LCOV_EXCL_START
+        errstr="failed to get socket name for src addr selection.";
         goto err;
-    } //LCOV_EXCL_STOP
+    }
 
-    if (len != sizeof(struct sockaddr_in) || cfrom.sin_family != AF_INET) {//LCOV_EXCL_START
-        errstr = "unexpected address family in src addr selection.";
+    if (len != sizeof(struct sockaddr_in) || cfrom.sin_family != AF_INET) {
+        errstr="unexpected address family in src addr selection.";
         goto err;
-    }//LCOV_EXCL_STOP
+    }
 
-    ((uint32_t*)from)[0]=0;
-    ((uint32_t*)from)[1]=0;
-    ((uint32_t*)from)[2]=htonl(0xffff);
-    ((uint32_t*)from)[3]=cfrom.sin_addr.s_addr;
+    ((uint32_t *)from)[0]=0;
+    ((uint32_t *)from)[1]=0;
+    ((uint32_t *)from)[2]=htonl(0xffff);
+    ((uint32_t *)from)[3]=cfrom.sin_addr.s_addr;
 
 err:
-    (void) CLOSE(s);
+    (void)CLOSE(s);
 
     /* No error (string) to return. */
     return (errstr);
 }
 
-const char *
-findsaddr6(register const struct sockaddr_in6 *to,
-    register struct in6_addr *from)
+const char *findsaddr6(register const struct sockaddr_in6 *to,
+        register struct in6_addr *from)
 {
     const char *errstr;
     struct sockaddr_in6 cto, cfrom;
@@ -123,43 +119,41 @@ findsaddr6(register const struct sockaddr_in6 *to,
     socklen_t len;
     uint32_t sock_flg=0;
 
-    if(IN6_IS_ADDR_LOOPBACK(&to->sin6_addr)) {
+    if (IN6_IS_ADDR_LOOPBACK(&to->sin6_addr)) {
         memcpy(from, &to->sin6_addr, sizeof(struct in6_addr));
         return NULL;
     }
 
-    s = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (s == INVALID_SOCKET) //LCOV_EXCL_START
+    s=socket(AF_INET6, SOCK_DGRAM, 0);
+    if (s == INVALID_SOCKET)
         return ("failed to open DGRAM socket for src addr selection.");
-    //LCOV_EXCL_STOP
 
-    errstr = NULL;
+    errstr=NULL;
 
     //Enable Dual-stack socket for Vista and higher
-    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&sock_flg,
-        sizeof(sock_flg))==-1) {
-        errstr = "setsockopt failed to set dual stack mode."; //LCOV_EXCL_START
+    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&sock_flg,
+            sizeof(sock_flg)) == -1) {
+        errstr="setsockopt failed to set dual stack mode.";
         goto err;
-    } //LCOV_EXCL_STOP
+    }
 
-    len = sizeof(struct sockaddr_in6);
+    len=sizeof(struct sockaddr_in6);
     memcpy(&cto, to, len);
-    cto.sin6_port = htons(65535);    /* Dummy port for connect(2). */
+    cto.sin6_port=htons(65535); /* Dummy port for connect(2). */
     if (connect(s, (struct sockaddr *)&cto, len) == -1) {
-        errstr = "failed to connect to peer for src addr selection."; //LCOV_EXCL_START
+        errstr="failed to connect to peer for src addr selection.";
         goto err;
-    } //LCOV_EXCL_STOP
+    }
 
     if (getsockname(s, (struct sockaddr *)&cfrom, &len) == -1) {
-        errstr = "failed to get socket name for src addr selection."; //LCOV_EXCL_START
+        errstr="failed to get socket name for src addr selection.";
         goto err;
-    }  //LCOV_EXCL_STOP
+    }
 
-
-    if (len != sizeof(struct sockaddr_in6) || cfrom.sin6_family != AF_INET6) {//LCOV_EXCL_START
-        errstr = "unexpected address family in src addr selection.";
+    if (len != sizeof(struct sockaddr_in6) || cfrom.sin6_family != AF_INET6) {
+        errstr="unexpected address family in src addr selection.";
         goto err;
-    } //LCOV_EXCL_STOP
+    }
 
     memcpy(from->s6_addr, cfrom.sin6_addr.s6_addr, sizeof(struct in6_addr));
 

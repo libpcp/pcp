@@ -37,7 +37,7 @@
 
 static int print_status(pcp_server_t* s, void* data UNUSED)
 {
-    pcp_logger(PCP_DEBUG_INFO, "Server index %d, addr %s, status: %d",
+    pcp_logger(PCP_LOGLVL_INFO, "Server index %d, addr %s, status: %d",
         s->index, s->pcp_server_paddr, s->server_state);
     return 0;
 }
@@ -59,7 +59,7 @@ int main(void)
 
     PD_SOCKET_STARTUP();
 
-    pcp_log_level = PCP_DEBUG_INFO;
+    pcp_log_level = PCP_LOGLVL_INFO;
 
     ctx = pcp_init(ENABLE_AUTODISCOVERY, NULL);
 
@@ -93,10 +93,10 @@ int main(void)
     f = pcp_new_flow(ctx, src, dst, NULL, IPPROTO_TCP, 600, NULL);
 #endif
     ret = pcp_wait(f, 13000, 1);
-    pcp_logger(PCP_DEBUG_INFO, "1st wait finished with result: %d\n", ret);
+    pcp_logger(PCP_LOGLVL_INFO, "1st wait finished with result: %d\n", ret);
 
     ret = pcp_wait(f, 20000, 1);
-    pcp_logger(PCP_DEBUG_INFO, "2nd wait finished with result: %d\n", ret);
+    pcp_logger(PCP_LOGLVL_INFO, "2nd wait finished with result: %d\n", ret);
 
     printf("\nFinal statuses of PCP servers:\n");
     pcp_db_foreach_server(ctx, print_status, NULL);

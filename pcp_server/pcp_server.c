@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
+ * Copyright (c) 2014 by Cisco Systems, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,6 +89,7 @@ typedef struct server_info {
     uint8_t server_version;
     uint8_t end_after_recv;
     uint8_t default_result_code;
+    struct in6_addr ext_ip;
     uint8_t app_bit;
     uint8_t ret_dscp;
     char log_file[MAX_LOG_FILE];
@@ -607,6 +608,16 @@ static int create_response(char *request, int pcp_result_code,
         return 0;
     }
 
+    if ((resp->r_opcode & 0x7f) == PCP_OPCODE_MAP) {
+        if (resp->ver==1) {
+            pcp_map_v1_t *m1 = (pcp_map_v1_t *)resp->next_data;
+            memcpy(m1->ext_ip, &server_info->ext_ip, sizeof(m1->ext_ip));
+        } else if (resp->ver==2) {
+            pcp_map_v2_t *m2 = (pcp_map_v2_t *)resp->next_data;
+            memcpy(m2->ext_ip, &server_info->ext_ip, sizeof(m2->ext_ip));
+        }
+    }
+
     if ((resp->r_opcode & 0x7f) == PCP_OPCODE_SADSCP) {
         pcp_sadscp_resp_t * r = (pcp_sadscp_resp_t*)resp->next_data;
         r->a_r_dscp = server_info->app_bit << 7;
@@ -789,6 +800,7 @@ int main(int argc, char *argv[])
                 { "ear", required_argument, 0, 0 },
                 { "help", no_argument, 0, 0 },
                 { "ip", required_argument, 0, 0 },
+                { "ext-ip", required_argument, 0, 0 },
                 { "timeout", required_argument, 0, 0 },
                 { "app-bit", no_argument, 0, 0 },
                 { "ret-dscp", required_argument, 0, 0 },
@@ -840,6 +852,11 @@ int main(int argc, char *argv[])
 
                 if (!strcmp(long_options[option_index].name, "ip"))
                     server_ip = optarg;
+
+                if (!strcmp(long_options[option_index].name, "ext-ip"))
+                {
+                    inet_pton(AF_INET6, optarg, &server_info_storage.ext_ip);
+                }
 
                 if (!strcmp(long_options[option_index].name, "help")) {
                     print_usage();

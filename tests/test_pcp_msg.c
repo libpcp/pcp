@@ -28,7 +28,7 @@
 int main(void)
 {
     pcp_ctx_t * ctx;
-    pcp_log_level = PCP_DEBUG_NONE;
+    pcp_log_level = PCP_LOGLVL_NONE;
     PD_SOCKET_STARTUP();
     ctx = pcp_init(0, NULL);
 #ifndef PCP_DISABLE_NATPMP

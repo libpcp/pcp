@@ -1,26 +1,26 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Copyright (c) 2014 by Cisco Systems, Inc.
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef PCP_SOCKET_H
@@ -64,44 +64,47 @@ int pcp_win_sock_cleanup();
 
 struct pcp_ctx_s;
 
+extern pcp_socket_vt_t default_socket_vt;
+
 void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
-        struct sockaddr* src);
-void
-pcp_fill_sockaddr(struct sockaddr* dst, struct in6_addr* sip, uint16_t sport,
-                  int ret_ipv6_mapped_ipv4);
+        struct sockaddr *src);
 
-PCP_SOCKET pcp_socket_create(struct pcp_ctx_s* ctx, int domain, int type, int protocol);
+void pcp_fill_sockaddr(struct sockaddr *dst, struct in6_addr *sip,
+        uint16_t sport, int ret_ipv6_mapped_ipv4);
 
-ssize_t pcp_socket_recvfrom(struct pcp_ctx_s* ctx, void *buf, size_t len, int flags,
-        struct sockaddr *src_addr, socklen_t *addrlen);
+PCP_SOCKET pcp_socket_create(struct pcp_ctx_s *ctx, int domain, int type,
+        int protocol);
 
-ssize_t pcp_socket_sendto(struct pcp_ctx_s* ctx, const void *buf, size_t len, int flags,
-        struct sockaddr *dest_addr, socklen_t addrlen);
+ssize_t pcp_socket_recvfrom(struct pcp_ctx_s *ctx, void *buf, size_t len,
+        int flags, struct sockaddr *src_addr, socklen_t *addrlen);
 
-int pcp_socket_close(struct pcp_ctx_s* ctx);
+ssize_t pcp_socket_sendto(struct pcp_ctx_s *ctx, const void *buf, size_t len,
+        int flags, struct sockaddr *dest_addr, socklen_t addrlen);
+
+int pcp_socket_close(struct pcp_ctx_s *ctx);
 
 #ifndef SA_LEN
 #ifdef HAVE_SOCKADDR_SA_LEN
 #define SA_LEN(addr)    ((addr)->sa_len)
 #else /* HAVE_SOCKADDR_SA_LEN */
 
+/*In Visual Studio inline keyword only available in C++ */
 #if (defined(_MSC_VER) && !defined(inline))
-#define inline __inline /*In Visual Studio inline keyword only available in C++ */
+#define inline __inline
 #endif
 
-static inline size_t
-get_sa_len(struct sockaddr *addr)
+static inline size_t get_sa_len(struct sockaddr *addr)
 {
     switch (addr->sa_family) {
 
-    case AF_INET:
-        return (sizeof (struct sockaddr_in));
+        case AF_INET:
+            return (sizeof(struct sockaddr_in));
 
-    case AF_INET6:
-        return (sizeof (struct sockaddr_in6));
+        case AF_INET6:
+            return (sizeof(struct sockaddr_in6));
 
-    default:
-        return (sizeof (struct sockaddr));
+        default:
+            return (sizeof(struct sockaddr));
     }
 }
 #define SA_LEN(addr)    (get_sa_len(addr))

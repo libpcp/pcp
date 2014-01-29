@@ -106,7 +106,7 @@ int main(int argc, char *argv[] UNUSED) {
     uint32_t lifetime = 10;
     pcp_ctx_t * ctx;
 
-//    pcp_log_level = PCP_DEBUG_DEBUG;
+//    pcp_log_level = PCP_LOGLVL_DEBUG;
 
     PD_SOCKET_STARTUP();
 
@@ -135,7 +135,7 @@ int main(int argc, char *argv[] UNUSED) {
     printf(">>> protocol = 6 \n");
     printf(">>> lifetime = 10 \n");
 
-    pcp_log_level = argc>1?PCP_DEBUG_DEBUG:PCP_DEBUG_INFO;
+    pcp_log_level = argc>1?PCP_LOGLVL_DEBUG:PCP_LOGLVL_INFO;
 
     ctx = pcp_init(0, NULL);
     pcp_add_server(ctx, Sock_pton("127.0.0.1"), 2);

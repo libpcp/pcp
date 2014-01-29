@@ -1,26 +1,26 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Copyright (c) 2014 by Cisco Systems, Inc.
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -40,8 +40,8 @@
 #ifdef WIN32
 #include    "pcp_win_defines.h"
 #else
-#include    <sys/socket.h>    /* basic socket definitions */
-#include    <netinet/in.h>    /* sockaddr_in{} and other Internet defns */
+#include    <sys/socket.h>   /* basic socket definitions */
+#include    <netinet/in.h>   /* sockaddr_in{} and other Internet defns */
 #include    <arpa/inet.h>    /* inet(3) functions */
 #include    <netdb.h>
 #endif
@@ -54,51 +54,53 @@
 #include    <net/if_dl.h>
 #endif
 
-
 /* include sock_ntop */
-char *
-sock_ntop(const struct sockaddr *sa, socklen_t salen)
+char *sock_ntop(const struct sockaddr *sa, socklen_t salen)
 {
-    char        portstr[8];
-    static char str[128];        /* Unix domain is largest */
+    char portstr[8];
+    static char str[128]; /* Unix domain is largest */
 
     switch (sa->sa_family) {
-    case AF_INET: {
-        struct sockaddr_in    *sin = (struct sockaddr_in *) sa;
+        case AF_INET: {
+            struct sockaddr_in *sin=(struct sockaddr_in *)sa;
 
-        if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL)
-            return(NULL);  //LCOV_EXCL_LINE
-        if (ntohs(sin->sin_port) != 0) {
-            snprintf(portstr, sizeof(portstr)-1, ":%d", ntohs(sin->sin_port));
-            portstr[sizeof(portstr)-1] = '\0';
-            strcat(str, portstr);
+            if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL)
+                return (NULL);
+            if (ntohs(sin->sin_port) != 0) {
+                snprintf(portstr, sizeof(portstr) - 1, ":%d",
+                        ntohs(sin->sin_port));
+                portstr[sizeof(portstr) - 1]='\0';
+                strcat(str, portstr);
+            }
+            return (str);
         }
-        return(str);
-    }
-/* end sock_ntop */
+            /* end sock_ntop */
 
 #ifdef  AF_INET6
-    case AF_INET6: {
-        struct sockaddr_in6    *sin6 = (struct sockaddr_in6 *) sa;
+        case AF_INET6: {
+            struct sockaddr_in6 *sin6=(struct sockaddr_in6 *)sa;
 
-        str[0] = '[';
-        if (inet_ntop(AF_INET6, &sin6->sin6_addr, str + 1, sizeof(str) - 1) == NULL)
-            return(NULL);  //LCOV_EXCL_LINE
-        if (ntohs(sin6->sin6_port) != 0) {
-            snprintf(portstr, sizeof(portstr)-1, "]:%d", ntohs(sin6->sin6_port));
-            portstr[sizeof(portstr)-1]='\0';
-            strcat(str, portstr);
-            return(str);
+            str[0]='[';
+            if (inet_ntop(AF_INET6, &sin6->sin6_addr, str + 1,
+                    sizeof(str) - 1) == NULL)
+                return (NULL);
+            if (ntohs(sin6->sin6_port) != 0) {
+                snprintf(portstr, sizeof(portstr) - 1, "]:%d",
+                        ntohs(sin6->sin6_port));
+                portstr[sizeof(portstr) - 1]='\0';
+                strcat(str, portstr);
+                return (str);
+            }
+            return (str + 1);
         }
-        return (str + 1);
-    }
 #endif
 
-    default:
-        snprintf(str, sizeof(str)-1, "sock_ntop: unknown AF_xxx: %d, len %d",
-                 sa->sa_family, salen);
-        str[sizeof(str)-1]='\0';
-        return(str);
+        default:
+            snprintf(str, sizeof(str) - 1,
+                    "sock_ntop: unknown AF_xxx: %d, len %d", sa->sa_family,
+                    salen);
+            str[sizeof(str) - 1]='\0';
+            return (str);
     }
     return (NULL);
 }

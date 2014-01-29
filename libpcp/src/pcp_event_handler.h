@@ -1,28 +1,27 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ Copyright (c) 2014 by Cisco Systems, Inc.
+ All rights reserved.
 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef PCP_EVENT_HANDLER_H_
 #define PCP_EVENT_HANDLER_H_
@@ -42,10 +41,7 @@ typedef enum {
 } pcp_flow_state_e;
 
 typedef enum {
-    pcpe_any,
-    pcpe_timeout,
-    pcpe_io_event,
-    pcpe_terminate
+    pcpe_any, pcpe_timeout, pcpe_io_event, pcpe_terminate
 } pcp_event_e;
 
 typedef enum {
@@ -72,10 +68,10 @@ typedef enum {
     fev_res_cant_provide_ext  = FEV_RES_BEGIN + PCP_RES_CANNOT_PROVIDE_EXTERNAL,
     fev_res_address_mismatch  = FEV_RES_BEGIN + PCP_RES_ADDRESS_MISMATCH,
     fev_res_exc_remote_peers  = FEV_RES_BEGIN + PCP_RES_EXCESSIVE_REMOTE_PEERS,
-}pcp_flow_event_e;
+} pcp_flow_event_e;
 
 typedef enum {
-    pss_any = -1,
+    pss_any=-1,
     pss_unitialized,
     pss_allocated,
     pss_ping,
@@ -91,11 +87,11 @@ typedef enum {
     PSS_COUNT
 } pcp_server_state_e;
 
-void pcp_flow_updated(pcp_flow_t* f);
+void pcp_flow_updated(pcp_flow_t *f);
 
 typedef struct pcp_server pcp_server_t;
 
-pcp_errno run_server_state_machine(pcp_server_t * s, pcp_event_e event);
+pcp_errno run_server_state_machine(pcp_server_t *s, pcp_event_e event);
 
 void pcp_fd_change_notify(pcp_server_t *s, int added);
 

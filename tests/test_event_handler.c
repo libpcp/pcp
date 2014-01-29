@@ -41,7 +41,7 @@ main(void)
 
     PD_SOCKET_STARTUP();
 
-    pcp_log_level = PCP_DEBUG_WARN;
+    pcp_log_level = PCP_LOGLVL_WARN;
     ctx = pcp_init(0, NULL);
 
     sa.sin_family = AF_INET;

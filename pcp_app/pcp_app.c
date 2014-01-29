@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
+ * Copyright (c) 2014 by Cisco Systems, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,6 @@
 #include <ws2ipdef.h>
 #include "pcp_win_defines.h"
 #include "unp.h"
-#include "pcp_utils.h"
 
 // function calling WSAStartup (used in pcp-server and pcp_app)
 static int pcp_win_sock_startup() {
@@ -273,8 +272,9 @@ static int check_flow_info(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
-    pcp_flow_info_t *ret = pcp_flow_get_info(f,&info_buf,&cnt);
+    pcp_flow_info_t *ret = pcp_flow_get_info(f,&cnt);
     int ret_val = 2;
+    info_buf=ret;
     for (; cnt>0; cnt--, ret++) {
         switch(ret->result)
         {
@@ -307,7 +307,8 @@ static void print_ext_addr(pcp_flow_t* f)
 {
     size_t cnt=0;
     pcp_flow_info_t *info_buf = NULL;
-    pcp_flow_info_t *ret = pcp_flow_get_info(f,&info_buf,&cnt);
+    pcp_flow_info_t *ret = pcp_flow_get_info(f,&cnt);
+    info_buf=ret;
 
     printf("%-20s %-4s %-20s %5s   %-20s %5s   %-20s %5s %3s %5s %s\n",
             "PCP Server IP",
@@ -348,7 +349,8 @@ static void print_get_dscp(pcp_flow_t* f)
 {
     size_t cnt=0;
      pcp_flow_info_t *info_buf = NULL;
-     pcp_flow_info_t *ret = pcp_flow_get_info(f, &info_buf, &cnt);
+     pcp_flow_info_t *ret = pcp_flow_get_info(f, &cnt);
+     info_buf=ret;
 
      printf("%-20s %5s %3s %5s %s\n",
              "Int. IP", "DSCP",
@@ -356,7 +358,7 @@ static void print_get_dscp(pcp_flow_t* f)
      for (; cnt>0; cnt--, ret++) {
          char ntop_buff[INET6_ADDRSTRLEN];
          char timebuf[32];
-         printf("%-20s %5u %3d %5s %s",
+         printf("%-20s %5hu %3d %5s %s",
                  inet_ntop(AF_INET6, &ret->int_ip, ntop_buff,
                      sizeof(ntop_buff)),
                  ret->learned_dscp,
@@ -822,7 +824,7 @@ static void parse_params(struct pcp_params *p, int argc, char *argv[])
     p->opt_lifetime = 900;
     p->pcp_version = PCP_MAX_SUPPORTED_VERSION;
     p->timeout = 1000;
-    pcp_log_level = PCP_DEBUG_DEBUG;
+    pcp_log_level = PCP_LOGLVL_DEBUG;
 
     p->delay_tolerance=3;
     p->loss_tolerance=3;

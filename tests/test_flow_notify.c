@@ -127,7 +127,7 @@ int main(int argc, char *argv[] UNUSED) {
 
     PD_SOCKET_STARTUP();
 
-    pcp_log_level = argc>1?PCP_DEBUG_DEBUG:1;
+    pcp_log_level = argc>1?PCP_LOGLVL_DEBUG:1;
     ctx=pcp_init(0, NULL);
 
     pcp_add_server(ctx, Sock_pton("127.0.0.1:5351"), 2);

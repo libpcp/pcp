@@ -1,28 +1,27 @@
 /*
- * Copyright (c) 2013 by Cisco Systems, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ Copyright (c) 2014 by Cisco Systems, Inc.
+ All rights reserved.
 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef PCP_UTILS_H_
 #define PCP_UTILS_H_
@@ -35,15 +34,15 @@
 
 #ifndef max
 #define max(a,b) \
-   ({ typeof (a) _a = (a); \
-       typeof (b) _b = (b); \
+   ({ typeof (a) _a=(a); \
+       typeof (b) _b=(b); \
      _a > _b ? _a : _b; })
 #endif
 
 #ifndef min
 #define min(a,b) \
-   ({ typeof (a) _a = (a); \
-       typeof (b) _b = (b); \
+   ({ typeof (a) _a=(a); \
+       typeof (b) _b=(b); \
      _a > _b ? _b : _a; })
 #endif
 
@@ -147,15 +146,15 @@
 #ifdef s6_addr32
 #define S6_ADDR32(sa6) (sa6)->s6_addr32
 #else
-#define S6_ADDR32(sa6) ((uint32_t*)((sa6)->s6_addr))
+#define S6_ADDR32(sa6) ((uint32_t *)((sa6)->s6_addr))
 #endif
 
 #define IPV6_ADDR_COPY(dest, src)   \
     do {                            \
-        (S6_ADDR32(dest))[0] = (S6_ADDR32(src))[0];       \
-        (S6_ADDR32(dest))[1] = (S6_ADDR32(src))[1];       \
-        (S6_ADDR32(dest))[2] = (S6_ADDR32(src))[2];       \
-        (S6_ADDR32(dest))[3] = (S6_ADDR32(src))[3];       \
+        (S6_ADDR32(dest))[0]=(S6_ADDR32(src))[0];       \
+        (S6_ADDR32(dest))[1]=(S6_ADDR32(src))[1];       \
+        (S6_ADDR32(dest))[2]=(S6_ADDR32(src))[2];       \
+        (S6_ADDR32(dest))[3]=(S6_ADDR32(src))[3];       \
     } while (0)
 
 #include "pcp_msg.h"
@@ -163,14 +162,15 @@ static inline int compare_epochs(pcp_recv_msg_t *f, pcp_server_t *s)
 {
     uint32_t c_delta;
     uint32_t s_delta;
-    if (s->epoch == ~0u) {
-        s->epoch = f->recv_epoch;
-        s->cepoch = f->received_time;
-    }
-    c_delta = (uint32_t) (f->received_time - s->cepoch);
-    s_delta = f->recv_epoch - s->epoch;
 
-    PCP_LOGGER(PCP_DEBUG_DEBUG,
+    if (s->epoch == ~0u) {
+        s->epoch=f->recv_epoch;
+        s->cepoch=f->received_time;
+    }
+    c_delta=(uint32_t)(f->received_time - s->cepoch);
+    s_delta=f->recv_epoch - s->epoch;
+
+    PCP_LOG(PCP_LOGLVL_DEBUG,
             "Epoch - client delta = %u, server delta = %u",
             c_delta, s_delta);
 
@@ -180,11 +180,11 @@ static inline int compare_epochs(pcp_recv_msg_t *f, pcp_server_t *s)
 
 inline static void timeval_align(struct timeval *x)
 {
-    x->tv_sec += x->tv_usec / 1000000;
-    x->tv_usec = x->tv_usec % 1000000;
+    x->tv_sec+=x->tv_usec / 1000000;
+    x->tv_usec=x->tv_usec % 1000000;
     if (x->tv_usec<0) {
-        x->tv_usec = 1000000 + x->tv_usec;
-        x->tv_sec -= 1;
+        x->tv_usec=1000000 + x->tv_usec;
+        x->tv_sec-=1;
     }
 }
 
@@ -208,62 +208,60 @@ inline static int timeval_comp(struct timeval *x, struct timeval *y)
 inline static int timeval_subtract(struct timeval *result, struct timeval *x,
         struct timeval *y)
 {
-    int ret;
-    ret = timeval_comp(x, y);
+    int ret=timeval_comp(x, y);
 
     if (ret<=0) {
-        result->tv_sec = 0;
-        result->tv_usec = 0;
+        result->tv_sec=0;
+        result->tv_usec=0;
         return 1;
     }
 
     // in case that tv_usec is unsigned -> perform the carry
     if (x->tv_usec < y->tv_usec) {
-        int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-        y->tv_usec -= 1000000 * nsec;
-        y->tv_sec += nsec;
+        int nsec=(y->tv_usec - x->tv_usec) / 1000000 + 1;
+        y->tv_usec-=1000000 * nsec;
+        y->tv_sec+=nsec;
     }
 
     /* Compute the time remaining to wait.
-     tv_usec is certainly positive. */
-    result->tv_sec = x->tv_sec - y->tv_sec;
-    result->tv_usec = x->tv_usec - y->tv_usec;
+       tv_usec is certainly positive. */
+    result->tv_sec=x->tv_sec - y->tv_sec;
+    result->tv_usec=x->tv_usec - y->tv_usec;
     timeval_align(result);
 
     /* Return 1 if result is negative. */
-    return ret<=0;
+    return ret <= 0;
 }
 
 /* Nonce is part of the MAP and PEER requests/responses
- * as of version 2 of the PCP protocol
- **/
-static inline void createNonce(struct pcp_nonce* nonce_field)
+   as of version 2 of the PCP protocol */
+static inline void createNonce(struct pcp_nonce *nonce_field)
 {
     int i;
     for (i = 2; i >= 0; --i)
 #ifdef WIN32
         nonce_field->n[i]=htonl (rand());
 #else  //WIN32
-        nonce_field->n[i] = htonl(random());
+        nonce_field->n[i]=htonl(random());
 #endif //WIN32
 }
 
 #ifndef HAVE_STRNDUP
-static inline char* pcp_strndup(const char *s, size_t size) {
+static inline char *pcp_strndup(const char *s, size_t size) {
   char *ret;
-  char *end = memchr(s, 0, size);
+  char *end=memchr(s, 0, size);
 
   if (end) {
     /* Length + 1 */
-    size = end - s + 1;
+    size=end - s + 1;
   } else {
     size++;
   }
-  ret = malloc(size);
+  ret=malloc(size);
 
   if (ret) {
       memcpy(ret, s, size);
-      ret[size-1] = '\0';
+      ret[size-1]='\0';
   }
   return ret;
 }

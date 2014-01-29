@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
                         protocol, lifetime, NULL);
 
     TEST(pcp_wait(flow, 2000, 0) == pcp_state_succeeded);
-    pcp_flow_get_info(flow, &flow_info, &flow_count);
+    flow_info=pcp_flow_get_info(flow, &flow_count);
     TEST(flow_info);
     printf("Flow result code %d \n", flow_info->pcp_result_code);
     s = get_pcp_server(ctx, flow->pcp_server_indx);
