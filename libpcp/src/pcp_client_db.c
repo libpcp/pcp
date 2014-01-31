@@ -321,7 +321,7 @@ int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
         }
         ctx->pcp_db.pcp_servers=ret;
         ret=ctx->pcp_db.pcp_servers + ctx->pcp_db.pcp_servers_length;
-        memset(ret, 0, sizeof(*ret));
+        memset(ret, 0, sizeof(*ret)*ctx->pcp_db.pcp_servers_length);
         ctx->pcp_db.pcp_servers_length<<=1;
     }
 

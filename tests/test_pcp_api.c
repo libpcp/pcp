@@ -104,8 +104,6 @@ int main(void)
     TEST(f1->lifetime==0);
     TEST((f1->timeout.tv_sec>0)||(f1->timeout.tv_usec>0));
 
-    pcp_set_3rd_party_opt(f1,NULL);
-
     printf("Tests succeeded.\n\n");
 
     PD_SOCKET_CLEANUP();

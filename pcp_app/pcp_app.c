@@ -49,6 +49,7 @@
 #include <ws2ipdef.h>
 #include "pcp_win_defines.h"
 #include "unp.h"
+#include "pcp_utils.h"
 
 // function calling WSAStartup (used in pcp-server and pcp_app)
 static int pcp_win_sock_startup() {
