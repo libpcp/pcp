@@ -73,7 +73,7 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         ((struct sockaddr_in *)&s->pcp_server_saddr)->sin_addr.s_addr=
                 s->pcp_ip[3];
         ((struct sockaddr_in *)&s->pcp_server_saddr)->sin_port=s->pcp_port;
-
+        SET_SA_LEN(&s->pcp_server_saddr, sizeof(struct sockaddr_in));
         inet_ntop(AF_INET,
                 (void *)&((struct sockaddr_in *)&s->pcp_server_saddr)->sin_addr,
                 s->pcp_server_paddr, sizeof(s->pcp_server_paddr));

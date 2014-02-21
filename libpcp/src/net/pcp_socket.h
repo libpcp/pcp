@@ -83,15 +83,15 @@ ssize_t pcp_socket_sendto(struct pcp_ctx_s *ctx, const void *buf, size_t len,
 
 int pcp_socket_close(struct pcp_ctx_s *ctx);
 
-#ifndef SA_LEN
-#ifdef HAVE_SOCKADDR_SA_LEN
-#define SA_LEN(addr)    ((addr)->sa_len)
-#else /* HAVE_SOCKADDR_SA_LEN */
-
 /*In Visual Studio inline keyword only available in C++ */
 #if (defined(_MSC_VER) && !defined(inline))
 #define inline __inline
 #endif
+
+#ifndef SA_LEN
+#ifdef HAVE_SOCKADDR_SA_LEN
+#define SA_LEN(addr)    ((addr)->sa_len)
+#else /* HAVE_SOCKADDR_SA_LEN */
 
 static inline size_t get_sa_len(struct sockaddr *addr)
 {
@@ -110,5 +110,11 @@ static inline size_t get_sa_len(struct sockaddr *addr)
 #define SA_LEN(addr)    (get_sa_len(addr))
 #endif /* HAVE_SOCKADDR_SA_LEN */
 #endif /* SA_LEN */
+
+#ifdef HAVE_SOCKADDR_SA_LEN
+#define SET_SA_LEN(s, l) ((struct sockaddr*)s)->sa_len=l
+#else
+#define SET_SA_LEN(s, l)
+#endif
 
 #endif /* PCP_SOCKET_H*/

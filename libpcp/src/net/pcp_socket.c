@@ -147,12 +147,14 @@ void pcp_fill_sockaddr(struct sockaddr *dst, struct in6_addr *sip,
         s->sin_family=AF_INET;
         s->sin_addr.s_addr=S6_ADDR32(sip)[3];
         s->sin_port=sport;
+        SET_SA_LEN(s, sizeof(struct sockaddr_in));
     } else {
         struct sockaddr_in6 *s=(struct sockaddr_in6 *)dst;
 
         s->sin6_family=AF_INET6;
         s->sin6_addr=*sip;
         s->sin6_port=sport;
+        SET_SA_LEN(s, sizeof(struct sockaddr_in6));
     }
 }
 
@@ -236,8 +238,10 @@ static PCP_SOCKET pcp_socket_create_impl(int domain, int type, int protocol)
     sas.ss_family=domain;
     if (domain == AF_INET) {
         sin->sin_port=htons(5350);
+        SET_SA_LEN(sin, sizeof(struct sockaddr_in));
     } else if (domain == AF_INET6) {
         sin6->sin6_port=htons(5350);
+        SET_SA_LEN(sin6, sizeof(struct sockaddr_in6));
     } else {
         PCP_LOG(PCP_LOGLVL_ERR, "Unsupported socket domain:%d", domain);
     }
@@ -288,6 +292,7 @@ static PCP_SOCKET pcp_socket_create_impl(int domain, int type, int protocol)
             return PCP_INVALID_SOCKET;
         }
     }
+    PCP_LOG(PCP_LOGLVL_DEBUG, "%s: return %d", __FUNCTION__, s);
     return s;
 #endif
 }
@@ -312,13 +317,13 @@ static ssize_t pcp_socket_recvfrom_impl(PCP_SOCKET sock, void *buf,
 }
 
 static ssize_t pcp_socket_sendto_impl(PCP_SOCKET sock, const void *buf,
-    size_t len, int flags, struct sockaddr *dest_addr, socklen_t addrlen)
+    size_t len, int flags UNUSED, struct sockaddr *dest_addr, socklen_t addrlen)
 {
     ssize_t ret=-1;
 
 #ifndef PCP_SOCKET_IS_VOIDPTR
     ret=sendto(sock, buf, len, 0, dest_addr, addrlen);
-    if ((ret == PCP_SOCKET_ERROR) || (ret != len)) {
+    if ((ret == PCP_SOCKET_ERROR) || (ret != (ssize_t)len)) {
         if (pcp_get_error() == PCP_ERR_WOULDBLOCK) {
             ret=PCP_ERR_WOULDBLOCK;
         } else {
