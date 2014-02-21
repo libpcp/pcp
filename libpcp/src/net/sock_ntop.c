@@ -62,7 +62,7 @@ char *sock_ntop(const struct sockaddr *sa, socklen_t salen)
 
     switch (sa->sa_family) {
         case AF_INET: {
-            struct sockaddr_in *sin=(struct sockaddr_in *)sa;
+          const struct sockaddr_in *sin=(const struct sockaddr_in *)sa;
 
             if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL)
                 return (NULL);
@@ -78,7 +78,7 @@ char *sock_ntop(const struct sockaddr *sa, socklen_t salen)
 
 #ifdef  AF_INET6
         case AF_INET6: {
-            struct sockaddr_in6 *sin6=(struct sockaddr_in6 *)sa;
+            const struct sockaddr_in6 *sin6=(const struct sockaddr_in6 *)sa;
 
             str[0]='[';
             if (inet_ntop(AF_INET6, &sin6->sin6_addr, str + 1,

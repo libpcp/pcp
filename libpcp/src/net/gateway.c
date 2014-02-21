@@ -119,9 +119,9 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum,
         /* Receive response from the kernel */
         readLen=recv(sockFd, bufPtr, BUFSIZE - msgLen, 0);
         if (readLen == -1) {
-            char err_msg[128];
-            pcp_strerror(errno, err_msg, sizeof(err_msg));
-            PCP_LOG(PCP_LOGLVL_DEBUG, "SOCK READ: %s", err_msg);
+            char errmsg[128];
+            pcp_strerror(errno, errmsg, sizeof(errmsg));
+            PCP_LOG(PCP_LOGLVL_DEBUG, "SOCK READ: %s", errmsg);
             return -1;
         }
 
@@ -366,10 +366,136 @@ end:
 struct sockaddr;
 struct in6_addr;
 
+/* Adapted from Richard Stevens, UNIX Network Programming  */
+
+/*
+ * Round up 'a' to next multiple of 'size', which must be a power of 2
+ */
+#define ROUNDUP(a, size) (((a) & ((size)-1)) ? (1 + ((a) | ((size)-1))) : (a))
+
+/*
+ * Step to next socket address structure;
+ * if sa_len is 0, assume it is sizeof(u_long). Using u_long only works on 32-bit
+ machines. In 64-bit machines it needs to be u_int32_t !!
+ */
+#define NEXT_SA(ap)    ap = (struct sockaddr *) \
+    ((caddr_t) ap + (ap->sa_len ? ROUNDUP(ap->sa_len, sizeof(uint32_t)) : \
+                                    sizeof(uint32_t)))
+
+/* thanks Stevens for this very handy function */
+static void get_rtaddrs(int addrs, struct sockaddr *sa,
+        struct sockaddr **rti_info)
+{
+    int i;
+
+    for (i=0; i < RTAX_MAX; i++) {
+        if (addrs & (1 << i)) {
+            rti_info[i]=sa;
+            NEXT_SA(sa);
+        } else
+            rti_info[i]=NULL;
+    }
+}
+
+/* Portable (hopefully) function to lookup routing tables. sysctl()'s
+ advantage is that it does not need root permissions. Routing sockets
+ need root permission since it is of type SOCK_RAW. */
+static char *
+net_rt_dump(int type, int family, int flags, size_t *lenp)
+{
+    int mib[6];
+    char *buf;
+
+    mib[0]=CTL_NET;
+    mib[1]=AF_ROUTE;
+    mib[2]=0;
+    mib[3]=family; /* only addresses of this family */
+    mib[4]=type;
+    mib[5]=flags; /* not looked at with NET_RT_DUMP */
+    if (sysctl(mib, 6, NULL, lenp, NULL, 0) < 0)
+        return (NULL);
+
+    if ((buf=malloc(*lenp)) == NULL)
+        return (NULL);
+    if (sysctl(mib, 6, buf, lenp, NULL, 0) < 0)
+        return (NULL);
+
+    return (buf);
+}
+
+/* Performs a route table dump selecting only entries that have Gateways.
+ This means that the return buffer will have many duplicate entries since
+ certain gateways appear multiple times in the routing table.
+
+ It is up to the caller to weed out duplicates
+ */
+int getgateways(struct in6_addr **gws)
+{
+    char *buf, *next, *lim;
+    size_t len;
+    struct rt_msghdr *rtm;
+    struct sockaddr *sa, *rti_info[RTAX_MAX];
+    int rtcount=0;
+
+    if (!gws) {
+        return PCP_ERR_UNKNOWN;
+    }
+
+    /* net_rt_dump() will return all route entries with gateways */
+    buf=net_rt_dump(NET_RT_FLAGS, 0, RTF_GATEWAY, &len);
+    if (!buf)
+        return PCP_ERR_UNKNOWN;
+    lim=buf + len;
+    for (next=buf; next < lim; next+=rtm->rtm_msglen) {
+        rtm=(struct rt_msghdr *)next;
+        sa=(struct sockaddr *)(rtm + 1);
+        get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
+
+        if ((sa=rti_info[RTAX_GATEWAY]) != NULL)
+
+            if ((rtm->rtm_addrs & (RTA_DST | RTA_GATEWAY))
+                    == (RTA_DST | RTA_GATEWAY)) {
+                struct in6_addr *in6=*gws;
+
+                *gws=(struct in6_addr *)realloc(*gws,
+                        sizeof(struct in6_addr) * (rtcount + 1));
+
+                if (!*gws) {
+                    if (in6)
+                        free(in6);
+                    free(buf);
+                    return PCP_ERR_NO_MEM;
+                }
+
+                in6=(*gws) + rtcount;
+                memset(in6, 0, sizeof(struct in6_addr));
+
+                if (sa->sa_family == AF_INET) {
+                    /* IPv4 gateways as returned as IPv4 mapped IPv6 addresses */
+                    in6->s6_addr32[0]=
+                            ((struct sockaddr_in *)(rti_info[RTAX_GATEWAY]))->sin_addr.s_addr;
+                    TO_IPV6MAPPED(in6);
+                } else if (sa->sa_family == AF_INET6) {
+                    memcpy(in6,
+                            &((((struct sockaddr_in6 *)rti_info[RTAX_GATEWAY]))->sin6_addr),
+                            sizeof(struct in6_addr));
+                } else {
+                    continue;
+                }
+                rtcount++;
+            }
+    }
+    free(buf);
+    return rtcount;
+}
+
+#if 0
+
 /* This structure is used for route operations using routing sockets */
 
 /* I know I could have used sockaddr. But type casting eveywhere is nasty and error prone.
    I do not believe a few bytes will make much impact and code will become much cleaner */
+
 typedef struct route_op {
     struct sockaddr_in dst4;
     struct sockaddr_in mask4;
@@ -386,9 +512,6 @@ get_if_addr_from_name(char *ifname, struct sockaddr *ifsock, int family);
 
 typedef route_op_t route_in_t;
 typedef route_op_t route_out_t;
-
-static void get_rtaddrs(int addrs, struct sockaddr *sa,
-        struct sockaddr **rti_info);
 
 static int route_get(in_addr_t *dst, in_addr_t *mask, in_addr_t *gateway,
         char *ifname, route_in_t *routein, route_out_t *routeout);
@@ -817,127 +940,6 @@ static int get_if_addr_from_name(char *ifname, struct sockaddr *ifsock,
     freeifaddrs(ifaddr);
     return -1;
 }
+#endif //0
 
-/* Adapted from Richard Stevens, UNIX Network Programming  */
-
-/*
- * Round up 'a' to next multiple of 'size', which must be a power of 2
- */
-#define ROUNDUP(a, size) (((a) & ((size)-1)) ? (1 + ((a) | ((size)-1))) : (a))
-
-/*
- * Step to next socket address structure;
- * if sa_len is 0, assume it is sizeof(u_long). Using u_long only works on 32-bit
- machines. In 64-bit machines it needs to be u_int32_t !!
- */
-#define NEXT_SA(ap)    ap = (struct sockaddr *) \
-    ((caddr_t) ap + (ap->sa_len ? ROUNDUP(ap->sa_len, sizeof(uint32_t)) : \
-                                    sizeof(uint32_t)))
-
-/* thanks Stevens for this very handy function */
-static void get_rtaddrs(int addrs, struct sockaddr *sa,
-        struct sockaddr **rti_info)
-{
-    int i;
-
-    for (i=0; i < RTAX_MAX; i++) {
-        if (addrs & (1 << i)) {
-            rti_info[i]=sa;
-            NEXT_SA(sa);
-        } else
-            rti_info[i]=NULL;
-    }
-}
-
-/* Portable (hopefully) function to lookup routing tables. sysctl()'s
- advantage is that it does not need root permissions. Routing sockets
- need root permission since it is of type SOCK_RAW. */
-static char *
-net_rt_dump(int type, int family, int flags, size_t *lenp)
-{
-    int mib[6];
-    char *buf;
-
-    mib[0]=CTL_NET;
-    mib[1]=AF_ROUTE;
-    mib[2]=0;
-    mib[3]=family; /* only addresses of this family */
-    mib[4]=type;
-    mib[5]=flags; /* not looked at with NET_RT_DUMP */
-    if (sysctl(mib, 6, NULL, lenp, NULL, 0) < 0)
-        return (NULL);
-
-    if ((buf=malloc(*lenp)) == NULL)
-        return (NULL);
-    if (sysctl(mib, 6, buf, lenp, NULL, 0) < 0)
-        return (NULL);
-
-    return (buf);
-}
-
-/* Performs a route table dump selecting only entries that have Gateways.
- This means that the return buffer will have many duplicate entries since
- certain gateways appear multiple times in the routing table.
-
- It is up to the caller to weed out duplicates
- */
-int getgateways(struct in6_addr **gws)
-{
-    char *buf, *next, *lim;
-    size_t len;
-    struct rt_msghdr *rtm;
-    struct sockaddr *sa, *rti_info[RTAX_MAX];
-    int rtcount=0;
-
-    if (!gws) {
-        return PCP_ERR_UNKNOWN;
-    }
-
-    /* net_rt_dump() will return all route entries with gateways */
-    buf=net_rt_dump(NET_RT_FLAGS, 0, RTF_GATEWAY, &len);
-    if (!buf)
-        return PCP_ERR_UNKNOWN;
-    lim=buf + len;
-    for (next=buf; next < lim; next+=rtm->rtm_msglen) {
-        rtm=(struct rt_msghdr *)next;
-        sa=(struct sockaddr *)(rtm + 1);
-        get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
-
-        if ((sa=rti_info[RTAX_GATEWAY]) != NULL)
-
-            if ((rtm->rtm_addrs & (RTA_DST | RTA_GATEWAY))
-                    == (RTA_DST | RTA_GATEWAY)) {
-                struct in6_addr *in6=*gws;
-
-                *gws=(struct in6_addr *)realloc(*gws,
-                        sizeof(struct in6_addr) * (rtcount + 1));
-
-                if (!*gws) {
-                    if (in6)
-                        free(in6);
-                    free(buf);
-                    return PCP_ERR_NO_MEM;
-                }
-
-                in6=(*gws) + rtcount;
-                memset(in6, 0, sizeof(struct in6_addr));
-
-                if (sa->sa_family == AF_INET) {
-                    /* IPv4 gateways as returned as IPv4 mapped IPv6 addresses */
-                    in6->s6_addr32[0]=
-                            ((struct sockaddr_in *)(rti_info[RTAX_GATEWAY]))->sin_addr.s_addr;
-                    TO_IPV6MAPPED(in6);
-                } else if (sa->sa_family == AF_INET6) {
-                    memcpy(in6,
-                            &((((struct sockaddr_in6 *)rti_info[RTAX_GATEWAY]))->sin6_addr),
-                            sizeof(struct in6_addr));
-                } else {
-                    continue;
-                }
-                rtcount++;
-            }
-    }
-    free(buf);
-    return rtcount;
-}
 #endif

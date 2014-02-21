@@ -135,7 +135,7 @@ pcp_errno pcp_delete_flow_intern(pcp_flow_t *f)
 
 pcp_errno pcp_db_add_flow(pcp_flow_t *f)
 {
-    uint32_t index;
+    uint32_t indx;
     pcp_flow_t **fdb;
     pcp_ctx_t *ctx;
 
@@ -145,11 +145,11 @@ pcp_errno pcp_db_add_flow(pcp_flow_t *f)
 
     ctx=f->ctx;
 
-    f->key_bucket=index=compute_flow_key(&f->kd);
+    f->key_bucket=indx=compute_flow_key(&f->kd);
     PCP_LOG(PCP_LOGLVL_DEBUG, "Adding flow %p, key_bucket %d",
             f, f->key_bucket);
 
-    for (fdb=ctx->pcp_db.flows + index; (*fdb) != NULL; fdb=&(*fdb)->next);
+    for (fdb=ctx->pcp_db.flows + indx; (*fdb) != NULL; fdb=&(*fdb)->next);
 
     *fdb=f;
     f->next=NULL;
@@ -215,12 +215,12 @@ pcp_errno pcp_db_rem_flow(pcp_flow_t *f)
 pcp_errno pcp_db_foreach_flow(pcp_ctx_t *ctx, pcp_db_flow_iterate f, void *data)
 {
     pcp_flow_t *fdb, *fdb_next=NULL;
-    uint32_t index;
+    uint32_t indx;
 
     assert(f && ctx);
 
-    for (index=0; index < FLOW_HASH_SIZE; ++index) {
-        fdb=ctx->pcp_db.flows[index];
+    for (indx=0; indx < FLOW_HASH_SIZE; ++indx) {
+        fdb=ctx->pcp_db.flows[indx];
         while (fdb != NULL) {
             fdb_next=(fdb->next);
             if ((*f)(fdb, data)) {

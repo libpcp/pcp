@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <time.h>
+#include <assert.h>
 
 #ifdef WIN32
 #include "pcp_win_defines.h"
@@ -162,11 +163,9 @@ static const char *dbg_get_event_name(pcp_flow_event_e ev)
             "fev_res_exc_remote_peers",
     };
 
-    if (((int)ev >= 0) && (ev < sizeof(event_names) / sizeof(event_names[0]))) {
-        return event_names[ev];
-    } else {
-        return "";
-    }
+    assert(((int)ev < sizeof(event_names) / sizeof(event_names[0])));
+
+    return (int)ev >= 0 ? event_names[ev] : "";
 }
 
 static const char *dbg_get_state_name(pcp_flow_state_e s)
@@ -182,11 +181,9 @@ static const char *dbg_get_state_name(pcp_flow_state_e s)
             "pfs_failed"
     };
 
-    if ((s >= 0) && (s < (int)(sizeof(state_names) / sizeof(state_names[0])))) {
-        return state_names[s];
-    } else {
-        return "";
-    }
+    assert((int)s < (int)(sizeof(state_names) / sizeof(state_names[0])));
+
+    return s >= 0 ? state_names[s] : "";
 }
 
 static const char *dbg_get_sevent_name(pcp_event_e ev)
@@ -198,12 +195,9 @@ static const char *dbg_get_sevent_name(pcp_event_e ev)
             "pcpe_terminate"
     };
 
-    if (((int)ev >= 0)
-            && (ev < sizeof(sevent_names) / sizeof(sevent_names[0]))) {
-        return sevent_names[ev];
-    } else {
-        return "";
-    }
+    assert((int) ev < sizeof(sevent_names) / sizeof(sevent_names[0]));
+
+    return sevent_names[ev];
 }
 
 static const char *dbg_get_sstate_name(pcp_server_state_e s)
@@ -223,11 +217,10 @@ static const char *dbg_get_sstate_name(pcp_server_state_e s)
             "pss_not_working"
     };
 
-    if ((s >= 0) && (s < (int)(sizeof(server_state_names) / sizeof(server_state_names[0])))) {
-        return server_state_names[s];
-    } else {
-        return "";
-    }
+    assert((int)s < (int)(sizeof(server_state_names) /
+        sizeof(server_state_names[0])));
+
+    return (s >=0 ) ? server_state_names[s] : "";
 }
 
 static const char *dbg_get_fstate_name(pcp_fstate_e s)
@@ -236,11 +229,10 @@ static const char *dbg_get_fstate_name(pcp_fstate_e s)
             "pcp_state_succeeded", "pcp_state_partial_result",
             "pcp_state_short_lifetime_error", "pcp_state_failed"};
 
-    if ((s < (int)sizeof(flow_state_names) / sizeof(flow_state_names[0]))) {
-        return flow_state_names[s];
-    } else {
-        return "";
-    }
+    assert((int)s < (int)sizeof(flow_state_names) /
+        sizeof(flow_state_names[0]));
+
+    return flow_state_names[s];
 }
 //LCOV_EXCL_STOP
 #endif
