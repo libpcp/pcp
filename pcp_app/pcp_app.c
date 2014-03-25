@@ -453,7 +453,6 @@ int main(int argc, char *argv[])
 
     memset(&source_ip, 0, sizeof(source_ip));
     memset(&destination_ip, 0, sizeof(destination_ip));
-    memset(&ext_ip, 0, sizeof(ext_ip));
 
     parse_params(&p, argc, argv);
 
@@ -510,7 +509,7 @@ int main(int argc, char *argv[])
     if (p.has_mappeer_data) {
         flow = pcp_new_flow(p.ctx, (struct sockaddr*)&source_ip,
                 (struct sockaddr*)&destination_ip,
-                (struct sockaddr*)&ext_ip,
+                p.ext_addr ? (struct sockaddr*)&ext_ip : NULL,
                 p.opt_protocol, p.opt_lifetime, p.ctx);
 
         if (flow == NULL) {

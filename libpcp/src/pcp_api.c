@@ -294,10 +294,8 @@ static inline void init_flow(pcp_flow_t *f, pcp_server_t *s, int lifetime,
         struct timeval curtime;
         f->ctx=s->ctx;
 
-        if (ext_addr) {
-            pcp_fill_in6_addr(&f->map_peer.ext_ip, &f->map_peer.ext_port,
-                    ext_addr);
-        }
+        pcp_fill_in6_addr(&f->map_peer.ext_ip, &f->map_peer.ext_port,
+            ext_addr);
 
         gettimeofday(&curtime, NULL);
         f->lifetime=lifetime;
@@ -387,6 +385,7 @@ pcp_flow_t *pcp_new_flow(pcp_ctx_t *ctx, struct sockaddr *src_addr,
     struct flow_key_data kd;
     struct caasi_data data;
     struct in6_addr src_ip;
+    struct sockaddr_storage tmp_ext_addr;
 
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
 
@@ -437,6 +436,27 @@ pcp_flow_t *pcp_new_flow(pcp_ctx_t *ctx, struct sockaddr *src_addr,
         }
     } else {
         kd.operation=PCP_OPCODE_MAP;
+    }
+
+    if (!ext_addr) {
+      struct sockaddr_in *te4=(struct sockaddr_in *)&tmp_ext_addr;
+      struct sockaddr_in6 *te6=(struct sockaddr_in6 *)&tmp_ext_addr;
+      tmp_ext_addr.ss_family=src_addr->sa_family;
+      switch (tmp_ext_addr.ss_family) {
+        case AF_INET:
+          memset(&te4->sin_addr, 0, sizeof(te4->sin_addr));
+          te4->sin_port=0;
+          break;
+        case AF_INET6:
+          memset(&te6->sin6_addr, 0, sizeof(te6->sin6_addr));
+          te6->sin6_port=0;
+          break;
+        default:
+          PCP_LOG(PCP_LOGLVL_PERR, "%s",
+                  "Unsupported address family.");
+          return NULL;
+      }
+      ext_addr=(struct sockaddr *)&tmp_ext_addr;
     }
 
     data.fprev=NULL;
