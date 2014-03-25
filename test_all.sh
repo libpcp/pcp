@@ -25,8 +25,12 @@ return 0
 # variable, which directs script to executables.
 # paths to scripts for pcp-app and pcp-server must be changed manually
 
+OS=$(uname)
 CURRENT_DIR=$(pwd)
-BIN_PATH=$CURRENT_DIR/build/bin/Debug
+case "$OS" in
+	Linux) BIN_PATH=$CURRENT_DIR/pcp_app:$CURRENT_DIR/pcp_server:$CURRENT_DIR/tests ;;
+	*) BIN_PATH=$CURRENT_DIR/build/bin/Debug ;;
+esac
 PATH_SCRIPT=tests
 PATH=$PATH:$BIN_PATH:$CURRENT_DIR/win_utils
 
@@ -62,25 +66,25 @@ Get_Status $? "test_lifetime_renewal      "
 $PATH_SCRIPT/test_server_reping.sh
 Get_Status $? "test_server_reping         "
 
-test_event_handler.exe
+test_event_handler
 Get_Status $? "test_event_handler         "
 
-test_gateway.exe
+test_gateway || test_gw
 Get_Status $? "test_gateway               "
 
-test_pcp_client_db.exe
+test_pcp_client_db
 Get_Status $? "test_pcp_client_db         "
 
-test_pcp_api.exe
+test_pcp_api
 Get_Status $? "test_pcp_api               "
 
-test_sock_ntop.exe
+test_sock_ntop
 Get_Status $? "test_sock_ntop             "
 
-test_pcp_logger.exe
+test_pcp_logger
 Get_Status $? "test_pcp_logger            "
 
-test_pcp_msg.exe
+test_pcp_msg
 Get_Status $? "test_pcp_msg               "
 
 $PATH_SCRIPT/test_server_reping.sh
@@ -92,12 +96,12 @@ Get_Status $? "test_pcp_app               "
 $PATH_SCRIPT/test_pcp_server.sh
 Get_Status $? "test_pcp_server            "
 
-test_ping_gws.exe
+test_ping_gws
 Get_Status $? "test_ping_gws              "
 
 cat $CURRENT_DIR/TEMP.tmp
 rm $CURRENT_DIR/TEMP.tmp
 
-echo -e Testing ended, results in \'libpcp/tests/test_results.txt\'
+echo -e Testing ended, results in \'$CURRENT_DIR/test_results.txt\'
 
 exit
