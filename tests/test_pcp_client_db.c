@@ -51,14 +51,14 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST(get_pcp_server(ctx, 1)==NULL);
     TEST(get_pcp_server(ctx, 0)==NULL);
     TEST(get_pcp_server(ctx, -1)==NULL);
-    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT, 0);
     TEST(si1 == 0);
     s1=get_pcp_server(ctx, si1);
     TEST(s1!=NULL);
     TEST(get_pcp_server(ctx, 1)==NULL);
     TEST(IN6_ARE_ADDR_EQUAL(&ip4, (struct in6_addr*)s1->pcp_ip));
 
-    si2=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    si2=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT, 0);
     TEST(si2 == 1);
     s2=get_pcp_server(ctx, 1);
     TEST(s2!=NULL);
@@ -71,17 +71,17 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     S6_ADDR32(&ip6)[2] = 2;
     S6_ADDR32(&ip6)[3] = 3;
 
-    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
+    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0);
     TEST(si2 == 2);
     s2=get_pcp_server(ctx, 2);
     TEST(s2!=NULL);
     TEST(IN6_ARE_ADDR_EQUAL(&ip6, (struct in6_addr*)s2->pcp_ip));
     TEST(get_pcp_server(ctx, 5)==NULL);
 
-    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 3);
-    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 4);
-    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 5);
-    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT) == 6);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0) == 3);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0) == 4);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0) == 5);
+    TEST(pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0) == 6);
 
     sret=get_pcp_server_by_ip(ctx, &ip6);
     TEST(sret!=NULL);
@@ -96,7 +96,7 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST(get_pcp_server(ctx, 1)==NULL);
     TEST(get_pcp_server(ctx, 0)==NULL);
     TEST(get_pcp_server(ctx, -1)==NULL);
-    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT);
+    si1=pcp_new_server(ctx, &ip4, PCP_SERVER_PORT, 0);
     TEST(si1 == 0);
     s1=get_pcp_server(ctx, si1);
     TEST(s1!=NULL);
@@ -104,7 +104,7 @@ static void test_pcp_server_functions(pcp_ctx_t *ctx)
     TEST(IN6_ARE_ADDR_EQUAL(&ip4, (struct in6_addr*)s1->pcp_ip));
 
 #ifdef PCP_USE_IPV6_SOCKET
-    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT);
+    si2=pcp_new_server(ctx, &ip6, PCP_SERVER_PORT, 0);
     TEST(si2 == 1);
     s2=get_pcp_server(ctx, si2);
     TEST(s2!=NULL);

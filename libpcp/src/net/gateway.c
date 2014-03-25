@@ -311,7 +311,7 @@ int getgateways(struct in6_addr **gws)
     return i;
 }
 #else
-int getgateways(struct in6_addr **gws)
+int getgateways(struct sockaddr_in6 **gws)
 {
     PMIB_IPFORWARDTABLE ipf_table;
     DWORD ipft_size=0;
@@ -346,8 +346,8 @@ int getgateways(struct in6_addr **gws)
         goto end;
     }
 
-    *gws=(struct in6_addr *)calloc(ipf_table->dwNumEntries,
-            sizeof(struct in6_addr));
+    *gws=(struct sockaddr_in6 *)calloc(ipf_table->dwNumEntries,
+            sizeof(struct sockaddr_in6));
     if (!*gws) {
         PCP_LOG(PCP_LOGLVL_DEBUG, "%s", "Error allocating memory");
         ret=PCP_ERR_NO_MEM;
@@ -356,9 +356,10 @@ int getgateways(struct in6_addr **gws)
 
     for (ret=0, i=0; i < (int)ipf_table->dwNumEntries; i++) {
         if (ipf_table->table[i].ForwardType == MIB_IPROUTE_TYPE_INDIRECT) {
-            S6_ADDR32((*gws)+ret)[0]=
-            (uint32_t)ipf_table->table[i].dwForwardNextHop;
-            TO_IPV6MAPPED(((*gws)+ret));
+            (*gws)[ret].sin6_family = AF_INET6;
+            S6_ADDR32(&(*gws)[ret].sin6_addr)[0]=
+                (uint32_t)ipf_table->table[i].dwForwardNextHop;
+            TO_IPV6MAPPED(&(*gws)[ret].sin6_addr);
             ret++;
         }
     }
@@ -440,7 +441,7 @@ net_rt_dump(int type, int family, int flags, size_t *lenp)
 
  It is up to the caller to weed out duplicates
  */
-int getgateways(struct in6_addr **gws)
+int getgateways(struct sockaddr_in6 **gws)
 {
     char *buf, *next, *lim;
     size_t len;
@@ -466,10 +467,10 @@ int getgateways(struct in6_addr **gws)
 
             if ((rtm->rtm_addrs & (RTA_DST | RTA_GATEWAY))
                     == (RTA_DST | RTA_GATEWAY)) {
-                struct in6_addr *in6=*gws;
+                struct sockaddr_in6 *in6=*gws;
 
-                *gws=(struct in6_addr *)realloc(*gws,
-                        sizeof(struct in6_addr) * (rtcount + 1));
+                *gws=(struct sockaddr_in6 *)realloc(*gws,
+                        sizeof(struct sockaddr_in6) * (rtcount + 1));
 
                 if (!*gws) {
                     if (in6)
@@ -479,17 +480,18 @@ int getgateways(struct in6_addr **gws)
                 }
 
                 in6=(*gws) + rtcount;
-                memset(in6, 0, sizeof(struct in6_addr));
+                memset(in6, 0, sizeof(struct sockaddr_in6));
 
                 if (sa->sa_family == AF_INET) {
                     /* IPv4 gateways as returned as IPv4 mapped IPv6 addresses */
-                    in6->s6_addr32[0]=
+                    in6->sin6_family = AF_INET6;
+                    in6->sin6_addr.s6_addr32[0]=
                             ((struct sockaddr_in *)(rti_info[RTAX_GATEWAY]))->sin_addr.s_addr;
                     TO_IPV6MAPPED(in6);
                 } else if (sa->sa_family == AF_INET6) {
                     memcpy(in6,
-                            &((((struct sockaddr_in6 *)rti_info[RTAX_GATEWAY]))->sin6_addr),
-                            sizeof(struct in6_addr));
+                            (struct sockaddr_in6 *)rti_info[RTAX_GATEWAY],
+                            sizeof(struct sockaddr_in6));
                 } else {
                     continue;
                 }

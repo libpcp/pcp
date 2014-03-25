@@ -33,7 +33,7 @@
 
 static void test_getgateways(void)
 {
-    struct in6_addr *gws=NULL, *gw;
+    struct sockaddr_in6 *gws=NULL, *gw;
     struct in_addr;
     int rCount = getgateways(&gws);
     gw=gws;
@@ -41,7 +41,7 @@ static void test_getgateways(void)
     TEST(rCount > 0)
     for(;rCount>0; rCount--) {
         char pb[128];
-        printf("gw : %-20s\n", inet_ntop(AF_INET6, gw, pb, sizeof(pb)));
+        printf("gw : %-20s\n", inet_ntop(AF_INET6, &gw->sin6_addr, pb, sizeof(pb)));
         gw++;
     }
     free(gws);
