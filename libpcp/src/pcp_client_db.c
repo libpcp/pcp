@@ -272,7 +272,7 @@ void pcp_db_add_md(pcp_flow_t *f, uint16_t md_id, void *val, size_t val_len)
 }
 #endif
 
-int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
+int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port, uint32_t scope_id)
 {
     uint32_t i;
     pcp_server_t *ret=NULL;
@@ -333,6 +333,7 @@ int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port)
 #endif
     IPV6_ADDR_COPY((struct in6_addr*)ret->pcp_ip, ip);
     ret->pcp_port=port;
+    ret->pcp_scope_id=scope_id;
     ret->ctx=ctx;
     ret->server_state=pss_allocated;
     ret->pcp_version=PCP_MAX_SUPPORTED_VERSION;

@@ -70,7 +70,7 @@ void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
         struct sockaddr *src);
 
 void pcp_fill_sockaddr(struct sockaddr *dst, struct in6_addr *sip,
-        uint16_t sport, int ret_ipv6_mapped_ipv4);
+        uint16_t sport, int ret_ipv6_mapped_ipv4, uint32_t scope_id);
 
 PCP_SOCKET pcp_socket_create(struct pcp_ctx_s *ctx, int domain, int type,
         int protocol);

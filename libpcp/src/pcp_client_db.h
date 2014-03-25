@@ -196,6 +196,7 @@ struct pcp_server {
     uint32_t af;
     uint32_t pcp_ip[4];
     uint16_t pcp_port;
+    uint32_t pcp_scope_id;
     uint32_t src_ip[4];
     char pcp_server_paddr[INET6_ADDRSTRLEN];
     struct sockaddr_storage pcp_server_saddr;
@@ -237,7 +238,7 @@ void pcp_flow_clear_msg_buf(pcp_flow_t *f);
 void pcp_db_add_md(pcp_flow_t *f, uint16_t md_id, void *val, size_t val_len);
 #endif
 
-int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port);
+int pcp_new_server(pcp_ctx_t *ctx, struct in6_addr *ip, uint16_t port, uint32_t scope_id);
 
 pcp_errno pcp_db_foreach_server(pcp_ctx_t *ctx, pcp_db_server_iterate f,
         void *data);
