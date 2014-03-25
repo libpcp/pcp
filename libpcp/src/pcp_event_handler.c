@@ -85,6 +85,7 @@ static pcp_server_state_e handle_server_not_working(pcp_server_t *s);
 static pcp_server_state_e handle_server_reping(pcp_server_t *s);
 static pcp_server_state_e pcp_terminate_server(pcp_server_t *s);
 static pcp_server_state_e log_unexepected_state_event(pcp_server_t *s);
+static pcp_server_state_e ignore_events(pcp_server_t *s);
 
 #if PCP_MAX_LOG_LEVEL>=PCP_LOGLVL_DEBUG
 
@@ -131,6 +132,8 @@ static const char *dbg_get_func_name(void *f)
         return "pcp_terminate_server";
     } else if (f == log_unexepected_state_event) {
         return "log_unexepected_state_event";
+    } else if (f == ignore_events) {
+        return "ignore_events";
     } else {
         return "unknown";
     }
@@ -1097,6 +1100,14 @@ static pcp_server_state_e pcp_terminate_server(pcp_server_t *s)
     return pss_allocated;
 }
 
+static pcp_server_state_e ignore_events(pcp_server_t *s)
+{
+  s->next_timeout.tv_sec=0;
+  s->next_timeout.tv_usec=0;
+
+  return s->server_state;
+}
+
 //LCOV_EXCL_START
 static pcp_server_state_e log_unexepected_state_event(pcp_server_t *s)
 {
@@ -1104,7 +1115,8 @@ static pcp_server_state_e log_unexepected_state_event(pcp_server_t *s)
             " and there is no event handler defined.",
             s->server_state, s->pcp_server_paddr);
 
-    return s->server_state;
+    gettimeofday(&s->next_timeout, NULL);
+    return pss_set_not_working;
 }
 //LCOV_EXCL_STOP
 ////////////////////////////////////////////////////////////////////////////////
@@ -1145,6 +1157,7 @@ pcp_server_state_machine_t server_sm[]={{pss_any, pcpe_terminate,
         // -> not_working
         {pss_not_working, pcpe_any, handle_server_not_working},
         // -> reping
+        {pss_allocated, pcpe_any, ignore_events},
         {pss_any, pcpe_any, log_unexepected_state_event}
 // -> last_state
         };
