@@ -1335,10 +1335,11 @@ static void flow_change_notify(pcp_flow_t *flow, pcp_fstate_e state)
 
     if (ctx->flow_change_cb_fun) {
         pcp_fill_sockaddr((struct sockaddr*)&src_addr, &flow->kd.src_ip,
-                flow->kd.map_peer.src_port, 0);
+                flow->kd.map_peer.src_port, 0, 0/* scope_id */);
         if (state == pcp_state_succeeded) {
             pcp_fill_sockaddr((struct sockaddr*)&ext_addr,
-                    &flow->map_peer.ext_ip, flow->map_peer.ext_port, 0);
+                    &flow->map_peer.ext_ip, flow->map_peer.ext_port, 0,
+                    0/* scope_id */);
         } else {
             memset(&ext_addr, 0, sizeof(ext_addr));
             ext_addr.ss_family=AF_INET;

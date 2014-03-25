@@ -152,7 +152,7 @@ static ssize_t readNlSock(int sockFd, char *bufPtr, unsigned seqNum,
     return msgLen;
 }
 
-int getgateways(struct in6_addr **gws)
+int getgateways(struct sockaddr_in6 **gws)
 {
     struct nlmsghdr *nlMsg;
     char msgBuf[BUFSIZE];
@@ -208,6 +208,9 @@ int getgateways(struct in6_addr **gws)
         struct rtmsg *rtMsg;
         struct rtattr *rtAttr;
         int rtLen;
+        unsigned int scope_id = 0;
+        struct in6_addr addr;
+        int found = 0;
         rtMsg=(struct rtmsg *)NLMSG_DATA(nlMsg);
 
         /* If the route is not for AF_INET(6) or does not belong to main
@@ -225,29 +228,37 @@ int getgateways(struct in6_addr **gws)
             if (rtaLen > sizeof(struct in6_addr)) {
                 continue;
             }
-            if (rtAttr->rta_type == RTA_GATEWAY) {
-                struct in6_addr *tmp_gws;
-                tmp_gws=(struct in6_addr *)realloc(*gws,
-                        sizeof(struct in6_addr) * (ret + 1));
-                if (!tmp_gws) {
-                    PCP_LOG(PCP_LOGLVL_DEBUG, "%s",
-                            "Error allocating memory");
-                    if (*gws) {
-                        free(*gws);
-                        *gws=NULL;
-                    }
-                    ret=PCP_ERR_NO_MEM;
-                    goto end;
-                }
-                *gws=tmp_gws;
-                memset(*gws + ret, 0, sizeof(struct in6_addr));
-                memcpy(*gws + ret, RTA_DATA(rtAttr), rtaLen);
-
+            if (rtAttr->rta_type == RTA_OIF) {
+                memcpy(&scope_id, RTA_DATA(rtAttr), sizeof(unsigned int));
+            } else if (rtAttr->rta_type == RTA_GATEWAY) {
+                memset(&addr, 0, sizeof(struct in6_addr));
+                memcpy(&addr, RTA_DATA(rtAttr), rtaLen);
                 if (rtMsg->rtm_family == AF_INET) {
-                    TO_IPV6MAPPED(((*gws)+ret));
+                    TO_IPV6MAPPED(&addr);
                 }
-                ret++;
+                found=1;
             }
+        }
+        if (found) {
+            struct sockaddr_in6 *tmp_gws;
+            tmp_gws=(struct sockaddr_in6 *)realloc(*gws,
+                    sizeof(struct sockaddr_in6) * (ret + 1));
+            if (!tmp_gws) {
+                PCP_LOG(PCP_LOGLVL_ERR, "%s",
+                        "Error allocating memory");
+                if (*gws) {
+                    free(*gws);
+                    *gws=NULL;
+                }
+                ret=PCP_ERR_NO_MEM;
+                goto end;
+            }
+            *gws=tmp_gws;
+            (*gws + ret)->sin6_family=AF_INET6;
+            memcpy(&((*gws + ret)->sin6_addr), &addr, sizeof(addr));
+            (*gws + ret)->sin6_scope_id=scope_id;
+            SET_SA_LEN(*gws + ret, sizeof(struct sockaddr_in6))
+            ret++;
         }
     }
 end:

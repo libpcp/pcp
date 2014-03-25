@@ -26,8 +26,8 @@
 #ifndef __GETGATEWAY_H__
 #define __GETGATEWAY_H__
 
-struct in6_addr;
+struct sockaddr_in6;
 
-int getgateways(struct in6_addr **gws);
+int getgateways(struct sockaddr_in6 **gws);
 
 #endif

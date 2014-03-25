@@ -105,7 +105,7 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
         return PCP_ERR_BAD_AFINET; //should never happen
     }
     pcp_fill_sockaddr((struct sockaddr *)&s->pcp_server_saddr,
-            (struct in6_addr *)&s->pcp_ip, s->pcp_port, 1);
+            (struct in6_addr *)&s->pcp_ip, s->pcp_port, 1, s->pcp_scope_id);
 
     inet_ntop(AF_INET6,
             (void *)&((struct sockaddr_in6*) &s->pcp_server_saddr)->sin6_addr,
@@ -135,7 +135,7 @@ static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
 
 void psd_add_gws(pcp_ctx_t *ctx)
 {
-    struct in6_addr *gws=NULL, *gw;
+    struct sockaddr_in6 *gws=NULL, *gw;
     int rcount=getgateways(&gws);
 
     gw=gws;
@@ -143,16 +143,16 @@ void psd_add_gws(pcp_ctx_t *ctx)
     for (; rcount > 0; rcount--, gw++) {
         int pcps_indx;
 
-        if ((IN6_IS_ADDR_V4MAPPED(gw)) && (S6_ADDR32(gw)[3] == INADDR_ANY))
+        if ((IN6_IS_ADDR_V4MAPPED(&gw->sin6_addr)) && (S6_ADDR32(&gw->sin6_addr)[3] == INADDR_ANY))
             continue;
 
-        if (IN6_IS_ADDR_UNSPECIFIED(gw))
+        if (IN6_IS_ADDR_UNSPECIFIED(&gw->sin6_addr))
             continue;
 
-        if (get_pcp_server_by_ip(ctx, gw))
+        if (get_pcp_server_by_ip(ctx, &gw->sin6_addr))
             continue;
 
-        pcps_indx=pcp_new_server(ctx, gw, ntohs(PCP_SERVER_PORT));
+        pcps_indx=pcp_new_server(ctx, &gw->sin6_addr, ntohs(PCP_SERVER_PORT), gw->sin6_scope_id);
         if (pcps_indx >= 0) {
             pcp_server_t *s=get_pcp_server(ctx, pcps_indx);
             if (!s)
@@ -177,6 +177,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t *ctx, struct sockaddr *sa,
 {
     struct in6_addr pcp_ip=IN6ADDR_ANY_INIT;
     uint16_t pcp_port;
+    uint32_t scope_id=0;
     pcp_server_t *pcps=NULL;
 
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
@@ -190,6 +191,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t *ctx, struct sockaddr *sa,
     } else {
         IPV6_ADDR_COPY(&pcp_ip, &((struct sockaddr_in6*)sa)->sin6_addr);
         pcp_port=((struct sockaddr_in6 *)sa)->sin6_port;
+        scope_id=((struct sockaddr_in6 *)sa)->sin6_scope_id;
     }
 
     if (!pcp_port) {
@@ -198,7 +200,7 @@ pcp_errno psd_add_pcp_server(pcp_ctx_t *ctx, struct sockaddr *sa,
 
     pcps=get_pcp_server_by_ip(ctx, (struct in6_addr *)&pcp_ip);
     if (!pcps) {
-        int pcps_indx=pcp_new_server(ctx, &pcp_ip, pcp_port);
+        int pcps_indx=pcp_new_server(ctx, &pcp_ip, pcp_port, scope_id);
 
         if (pcps_indx >= 0) {
             pcps=get_pcp_server(ctx, pcps_indx);

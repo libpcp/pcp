@@ -139,7 +139,7 @@ void pcp_fill_in6_addr(struct in6_addr *dst_ip6, uint16_t *dst_port,
 }
 
 void pcp_fill_sockaddr(struct sockaddr *dst, struct in6_addr *sip,
-        uint16_t sport, int ret_ipv6_mapped_ipv4)
+        uint16_t sport, int ret_ipv6_mapped_ipv4, uint32_t scope_id)
 {
     if ((!ret_ipv6_mapped_ipv4) && (IN6_IS_ADDR_V4MAPPED(sip))) {
         struct sockaddr_in *s=(struct sockaddr_in *)dst;
@@ -154,6 +154,7 @@ void pcp_fill_sockaddr(struct sockaddr *dst, struct in6_addr *sip,
         s->sin6_family=AF_INET6;
         s->sin6_addr=*sip;
         s->sin6_port=sport;
+        s->sin6_scope_id=scope_id;
         SET_SA_LEN(s, sizeof(struct sockaddr_in6));
     }
 }
