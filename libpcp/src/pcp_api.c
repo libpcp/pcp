@@ -294,8 +294,16 @@ static inline void init_flow(pcp_flow_t *f, pcp_server_t *s, int lifetime,
         struct timeval curtime;
         f->ctx=s->ctx;
 
-        pcp_fill_in6_addr(&f->map_peer.ext_ip, &f->map_peer.ext_port,
-            ext_addr);
+        switch (f->kd.operation) {
+          case PCP_OPCODE_MAP:
+          case PCP_OPCODE_PEER:
+              pcp_fill_in6_addr(&f->map_peer.ext_ip, &f->map_peer.ext_port,
+                  ext_addr);
+              break;
+          default:
+            assert(!ext_addr);
+            break;
+        }
 
         gettimeofday(&curtime, NULL);
         f->lifetime=lifetime;
