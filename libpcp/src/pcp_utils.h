@@ -122,27 +122,6 @@
 
 #define OSDEP(x) (void)(x)
 
-/* Getting rid of Apple's lack of s6_addr32 definition causing compilation warnings */
-#if defined(__APPLE__)
-
-#ifndef s6_addr32
-    #define s6_addr32   __u6_addr.__u6_addr32
-#endif
-#undef IN6_IS_ADDR_V4MAPPED
-#define IN6_IS_ADDR_V4MAPPED(a)           \
-    ((*(const __uint32_t *)(const void *)(&(a)->s6_addr32[0]) == 0) && \
-     (*(const __uint32_t *)(const void *)(&(a)->s6_addr32[1]) == 0) && \
-     (*(const __uint32_t *)(const void *)(&(a)->s6_addr32[2]) == ntohl(0x0000ffff)))
-
-#undef IN6_IS_ADDR_UNSPECIFIED
-#define IN6_IS_ADDR_UNSPECIFIED(a)  \
-    ((*(const __uint32_t *)(const void *)(&(a)->s6_addr32[0]) == 0) && \
-     (*(const __uint32_t *)(const void *)(&(a)->s6_addr32[1]) == 0) && \
-     (*(const __uint32_t *)(const void *)(&(a)->s6_addr32[2]) == 0) && \
-     (*(const __uint32_t *)(const void *)(&(a)->s6_addr32[3]) == 0))
-
-#endif
-
 #ifdef s6_addr32
 #define S6_ADDR32(sa6) (sa6)->s6_addr32
 #else

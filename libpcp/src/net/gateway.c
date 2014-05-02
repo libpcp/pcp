@@ -485,9 +485,9 @@ int getgateways(struct sockaddr_in6 **gws)
                 if (sa->sa_family == AF_INET) {
                     /* IPv4 gateways as returned as IPv4 mapped IPv6 addresses */
                     in6->sin6_family = AF_INET6;
-                    in6->sin6_addr.s6_addr32[0]=
+                    S6_ADDR32(&in6->sin6_addr)[0]=
                             ((struct sockaddr_in *)(rti_info[RTAX_GATEWAY]))->sin_addr.s_addr;
-                    TO_IPV6MAPPED(in6);
+                    TO_IPV6MAPPED(&in6->sin6_addr);
                 } else if (sa->sa_family == AF_INET6) {
                     memcpy(in6,
                             (struct sockaddr_in6 *)rti_info[RTAX_GATEWAY],
