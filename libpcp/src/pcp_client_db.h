@@ -178,6 +178,10 @@ struct pcp_flow_s {
     uint16_t filter_port;
     struct in6_addr filter_ip;
 
+    // THIRD_PARTY Option
+    uint8_t third_party_option_present;
+    struct in6_addr third_party_ip;
+
 #ifdef PCP_EXPERIMENTAL
     //MD Option
     uint32_t md_val_count;

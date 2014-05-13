@@ -497,10 +497,15 @@ void pcp_flow_set_lifetime(pcp_flow_t *f, uint32_t lifetime)
     }
 }
 
-void pcp_set_3rd_party_opt(UNUSED pcp_flow_t *f,
-        UNUSED struct sockaddr *thirdp_addr)
+void pcp_flow_set_3rd_party_opt(pcp_flow_t *f, struct sockaddr *thirdp_addr)
 {
-    assert(0);
+    pcp_flow_t *fiter;
+
+    for (fiter=f; fiter != NULL; fiter=fiter->next_child) {
+        fiter->third_party_option_present=1;
+        pcp_fill_in6_addr(&fiter->third_party_ip, NULL, thirdp_addr);
+        pcp_flow_updated(fiter);
+    }
 }
 
 void pcp_flow_set_filter_opt(pcp_flow_t *f, struct sockaddr *filter_ip,
