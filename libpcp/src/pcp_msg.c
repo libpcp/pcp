@@ -78,6 +78,19 @@ static void *add_prefer_failure_option(void *cur)
     return cur;
 }
 
+static void *add_third_party_option(pcp_flow_t *f, void *cur)
+{
+    pcp_3rd_party_option_t *tp_op=(pcp_3rd_party_option_t *)cur;
+
+    tp_op->option=PCP_OPTION_3RD_PARTY;
+    tp_op->reserved=0;
+    memcpy(tp_op->ip, &f->third_party_ip, sizeof(f->third_party_ip));
+    tp_op->len=htons(sizeof(*tp_op) - sizeof(pcp_options_hdr_t));
+    cur=tp_op->next_data;
+
+    return cur;
+}
+
 #ifdef PCP_EXPERIMENTAL
 static void *add_userid_option(pcp_flow_t *f, void *cur)
 {
@@ -183,6 +196,9 @@ static pcp_errno build_pcp_options(pcp_flow_t *flow, void *cur)
 
     if (flow->pfailure_option_present) {
         cur=add_prefer_failure_option(cur);
+    }
+    if (flow->third_party_option_present) {
+        cur=add_third_party_option(flow, cur);
     }
 #ifdef PCP_EXPERIMENTAL
     if (flow->f_deviceid.deviceid[0] != '\0') {

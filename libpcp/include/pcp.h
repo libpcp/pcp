@@ -172,7 +172,7 @@ void *pcp_flow_get_user_data(pcp_flow_t *f);
 /*
  * Set 3rd party option to the existing message flow info.
  */
-void pcp_set_3rd_party_opt(pcp_flow_t *f, struct sockaddr *thirdp_addr);
+void pcp_flow_set_3rd_party_opt(pcp_flow_t *f, struct sockaddr *thirdp_addr);
 
 #ifdef PCP_FLOW_PRIORITY
 /*

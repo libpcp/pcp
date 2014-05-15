@@ -194,6 +194,9 @@ typedef pcp_deviceid_option_t pcp_app_deviceid_t;
                                                               TABS4 "Permitted remote peer addresses MUST \n" \
                                                               TABS4 "have following format [ip_address/prefix]:port") \
  HELP_MSG(                                                          "") \
+ HELP_MSG(                                                          " Third party option:") \
+ OPTION(SHORT(3), thirdparty,   "third-party",         REQARG, TABS2 "Third-party IP address to send on behalf of.") \
+ HELP_MSG(                                                          "") \
  IFDEF(PCP_EXPERIMENTAL, \
    HELP_MSG(                                                          " Metadata option:") \
    HELP_MSG(                                                    TABS4 "It's possible to add several metadata options by") \
@@ -386,6 +389,7 @@ struct pcp_params {
     char *ext_addr;
     char *peer_addr;
     char *filter_addr;
+    char *opt_thirdparty_addr;
     uint8_t opt_pfailure;
     uint8_t opt_filter;
     int opt_filter_prefix;
@@ -443,6 +447,7 @@ int main(int argc, char *argv[])
     struct sockaddr_storage source_ip;
     struct sockaddr_storage ext_ip;
     struct sockaddr_storage filter_ip;
+    struct sockaddr_storage thirdparty_ip;
     int ret_val = 1;
     pcp_flow_t* flow = NULL;
     struct pcp_server_list *server;
@@ -489,6 +494,10 @@ int main(int argc, char *argv[])
                 "Invalid address for Filter option!\n");
         exit(1);
 
+    }
+    if ((p.opt_thirdparty_addr)&&(0!=sock_pton(p.opt_thirdparty_addr, (struct sockaddr*)&thirdparty_ip))) {
+        fprintf(stderr, "Entered invalid third-party address!\n");
+        exit(1);
     }
 
     if (!p.dis_auto_discovery) {
@@ -549,6 +558,10 @@ int main(int argc, char *argv[])
 
         if (p.opt_pfailure) {
             pcp_flow_set_prefer_failure_opt(flow);
+        }
+
+        if (p.opt_thirdparty_addr) {
+            pcp_flow_set_3rd_party_opt(flow, (struct sockaddr *)&thirdparty_ip);
         }
 
 #ifdef PCP_SADSCP
@@ -782,6 +795,14 @@ static inline void parse_opt_pfailure(struct pcp_params *p)
     p->opt_pfailure = 1;
     p->has_mappeer_data = 1;
 }
+
+static inline void parse_opt_thirdparty(struct pcp_params *p)
+{
+    p->opt_thirdparty_addr=optarg;
+    p->has_mappeer_data = 1;
+}
+
+
 
 #ifdef PCP_SADSCP
 static inline void parse_opt_sadscp_jit(struct pcp_params *p)
