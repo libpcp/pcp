@@ -42,21 +42,21 @@ pcp_options={   1 : "third_party",
     }
 
 class PCP(Packet):
-	name = "PCP"
-	fields_desc = [ ByteField("version",2),
+    name = "PCP"
+    fields_desc = [ ByteField("version",2),
                     ByteEnumField("opcode", 2, pcp_opcodes),
                     #PCP request specific fields
-                    ConditionalField(ShortField("reserved",0), lambda pkt: pkt.opcode in [1,2,3] ),
-                    ConditionalField(IntField("lifetime", 1000), lambda pkt: pkt.opcode in [1,2,3] ),
-                    ConditionalField(Emph(IP6Field("src_ip", "::ffff:127.0.0.1")), lambda pkt: pkt.opcode in [1,2,3] ),
+                    ConditionalField(ShortField("reserved",0), lambda pkt: pkt.opcode in [0,1,2,3] ),
+                    ConditionalField(IntField("lifetime", 1000), lambda pkt: pkt.opcode in [0,1,2,3] ),
+                    ConditionalField(Emph(IP6Field("src_ip", "::ffff:127.0.0.1")), lambda pkt: pkt.opcode in [0,1,2,3] ),
                     #PCP response specific fields
-                    ConditionalField(ByteField("reserved",0), lambda pkt: pkt.opcode in [129,130] ),
-                    ConditionalField(ByteField("result",0), lambda pkt: pkt.opcode in [129,130]),
-                    ConditionalField(IntField("lifetime", 1000), lambda pkt: pkt.opcode in [129,130]),
-                    ConditionalField(IntField("epoch", 0), lambda pkt: pkt.opcode in [129,130]),
-                    ConditionalField(IntField("reserved1", 0), lambda pkt: pkt.opcode in [129,130]),
-                    ConditionalField(IntField("reserved2", 0), lambda pkt: pkt.opcode in [129,130]),
-                    ConditionalField(IntField("reserved3", 0), lambda pkt: pkt.opcode in [129,130]),
+                    ConditionalField(ByteField("reserved",0), lambda pkt: pkt.opcode in [128,129,130] ),
+                    ConditionalField(ByteField("result",0), lambda pkt: pkt.opcode in [128,129,130]),
+                    ConditionalField(IntField("lifetime", 1000), lambda pkt: pkt.opcode in [128,129,130]),
+                    ConditionalField(IntField("epoch", 0), lambda pkt: pkt.opcode in [128,129,130]),
+                    ConditionalField(IntField("reserved1", 0), lambda pkt: pkt.opcode in [128,129,130]),
+                    ConditionalField(IntField("reserved2", 0), lambda pkt: pkt.opcode in [128,129,130]),
+                    ConditionalField(IntField("reserved3", 0), lambda pkt: pkt.opcode in [128,129,130]),
                     #Nonce that goes with MAP, PEER and SADSCP opcodes
                     ConditionalField(IntField("nonce1",random.randint(0,0xffffffff)), lambda pkt: pkt.opcode in [1,2,3,129,130,131] and pkt.version == 2 ),
                     ConditionalField(IntField("nonce2",random.randint(0,0xffffffff)), lambda pkt: pkt.opcode in [1,2,3,129,130,131] and pkt.version == 2 ),
