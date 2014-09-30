@@ -55,14 +55,17 @@ static void test_sa_len(void)
 
     printf("Test sockaddr_in\n");
     sa.sa_family=AF_INET;
+    SET_SA_LEN(&sa, sizeof(struct sockaddr_in));
     TEST(SA_LEN(&sa) == sizeof(struct sockaddr_in));
 
     printf("Test sockaddr_in6\n");
     sa.sa_family=AF_INET6;
+    SET_SA_LEN(&sa, sizeof(struct sockaddr_in6));
     TEST(SA_LEN(&sa) == sizeof(struct sockaddr_in6));
 
     printf("Test sockadd\n");
     sa.sa_family=AF_UNSPEC;
+    SET_SA_LEN(&sa, sizeof(struct sockaddr));
     TEST(SA_LEN(&sa) == sizeof(struct sockaddr));
 }
 
