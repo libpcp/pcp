@@ -9,8 +9,6 @@ set(INCLUDE_SRC
 set(INCLUDE_NET 
         ${CMAKE_SOURCE_DIR}/libpcp/src/net)
 
-include_directories(${INC} ${INCLUDE_SRC} ${INCLUDE_NET})
-
 if (WIN32)
 set(INC
         ${INC}
@@ -22,8 +20,7 @@ set(INC
         )
 endif()
 
-include_directories(${INC} ${INCLUDE_SRC} ${INCLUDE_NET})
-#include_directories(${INC})
+include_directories(${INC} ${INCLUDE_NET})
 
 #name collision if executable is called "pcp"
 # the name of the library is "pcp" even though Cmake prepends "lib" in front
