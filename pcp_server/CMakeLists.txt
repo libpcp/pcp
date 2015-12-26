@@ -1,6 +1,7 @@
 set(INC 
     ${CMAKE_SOURCE_DIR}/libpcp/src
     ${CMAKE_SOURCE_DIR}/libpcp/include
+    ${CMAKE_SOURCE_DIR}/libpcp/src/net
     )
     
 if (WIN32)
@@ -15,7 +16,6 @@ set(PCP_SERVER_SOURCES
     
 set(INC 
     ${INC}
-	${CMAKE_SOURCE_DIR}/libpcp/src/net
 	${CMAKE_SOURCE_DIR}/pcp_client/win_utils
     ${CMAKE_SOURCE_DIR}/libpcp/src/windows
     ${CMAKE_SOURCE_DIR}/win_utils
