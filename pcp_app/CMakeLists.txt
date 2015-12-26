@@ -13,7 +13,7 @@ set(INC
         ${CMAKE_SOURCE_DIR}/pcp_app/windows/include
         ${CMAKE_SOURCE_DIR}/win_utils
         )
-set(ADDITIONAL_SRC 
+set(ADDITIONAL_SRC
         ${CMAKE_SOURCE_DIR}/win_utils/getopt.c
         ${CMAKE_SOURCE_DIR}/win_utils/getopt_long.c
         ${CMAKE_SOURCE_DIR}/libpcp/src/windows/pcp_gettimeofday.c)
