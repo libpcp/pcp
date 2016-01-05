@@ -26,6 +26,8 @@
 #ifndef PCP_SOCKET_H
 #define PCP_SOCKET_H
 
+#include "pcp.h"
+
 #ifdef PCP_SOCKET_IS_VOIDPTR
 #define PD_SOCKET_STARTUP()
 #define PD_SOCKET_CLEANUP()

@@ -22,6 +22,7 @@
 #include "pcp_client_db.h"
 #include "test_macro.h"
 #include "pcp_utils.h"
+#include "pcp_socket.h"
 
 static int ret_0_func(pcp_server_t *f UNUSED, void* data UNUSED)
 {

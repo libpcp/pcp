@@ -40,10 +40,10 @@
 #include <signal.h>
 #include <ctype.h>
 #include "getopt.h"
+#include "pcp_socket.h"
 
 #ifdef WIN32
 #include <winsock2.h>
-//#include "pcp_socket.h"
 #include "pcp_gettimeofday.h"
 #include <io.h>
 #include <sys/stat.h>
