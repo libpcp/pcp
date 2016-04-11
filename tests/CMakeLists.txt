@@ -2,7 +2,6 @@ set(INC
         ${CMAKE_SOURCE_DIR}/libpcp/src
 		${CMAKE_SOURCE_DIR}/libpcp/windows
         ${CMAKE_SOURCE_DIR}/libpcp/include
-		${CMAKE_SOURCE_DIR}/libpcp/src/net/pcp_socket.h
 		)
 
 set(INCLUDE_SRC
