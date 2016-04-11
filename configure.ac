@@ -41,7 +41,7 @@ AC_TYPE_UINT8_T
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS([gettimeofday memset select socket strdup strerror])
+AC_CHECK_FUNCS([gettimeofday memset select socket strdup strerror strndup])
 
 case "$target" in
         *-*-mingw*|*-*-cygwin*)

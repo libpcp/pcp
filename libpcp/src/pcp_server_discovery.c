@@ -51,6 +51,7 @@
 #include "pcp_msg.h"
 #include "pcp_logger.h"
 #include "findsaddr.h"
+#include "pcp_socket.h"
 
 static pcp_errno psd_fill_pcp_server_src(pcp_server_t *s)
 {

@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include "getopt.h"
+#include <unistd.h>
 #include "pcp_socket.h"
 
 #ifdef WIN32
