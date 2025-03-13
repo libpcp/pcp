@@ -481,9 +481,11 @@ static pcp_flow_event_e fhndl_received_success(pcp_flow_t *f,
     struct timeval ctv;
 
     PCP_LOG_BEGIN(PCP_LOGLVL_DEBUG);
-    f->recv_lifetime=msg->received_time + msg->recv_lifetime;
-    if (msg->received_time > f->recv_lifetime){
-        f->recv_lifetime= LONG_MAX;
+    // avoid integer overflow
+    if (msg->recv_lifetime > (time_t) LONG_MAX - msg->received_time) {
+        f->recv_lifetime = LONG_MAX;
+    } else {
+        f->recv_lifetime = msg->received_time + msg->recv_lifetime;
     }
     if ((f->kd.operation == PCP_OPCODE_MAP)
             || (f->kd.operation == PCP_OPCODE_PEER)) {
