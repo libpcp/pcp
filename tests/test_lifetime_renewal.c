@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif
-#include "pcp.h"
+#include "pcpnatpmp.h"
 #include "pcp_socket.h"
 #include "pcp_utils.h"
 #include "unp.h"
