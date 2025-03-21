@@ -77,6 +77,7 @@
 #endif // WIN32
 
 #include "pcpnatpmp.h"
+
 #include "pcp_msg_structs.h"
 #include "pcp_utils.h"
 
